@@ -1,0 +1,6 @@
+# Your settings and data stay private
+config.ini
+data/
+*token*
+__pycache__/
+*.pyc

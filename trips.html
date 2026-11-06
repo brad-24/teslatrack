@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
+<script>try { var t = localStorage.getItem("tt-theme"); if (t) document.documentElement.setAttribute("data-theme", t); } catch (e) {}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%23121722%22/%3E%3Cg stroke=%22%23ffc53d%22 stroke-width=%224.5%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M32 6v6M32 52v6M6 32h6M52 32h6M13.6 13.6l4.2 4.2M46.2 46.2l4.2 4.2M13.6 50.4l4.2-4.2M46.2 17.8l4.2-4.2%22/%3E%3C/g%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2215%22 fill=%22%23ffc53d%22/%3E%3Cpath d=%22M35 19 L24 34 H31 L28 45 L40 29 H33 Z%22 fill=%22%23121722%22/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="/img/icon-180.png">
+<meta name="theme-color" content="#121722">
+<meta name="apple-mobile-web-app-title" content="SolarCharge">
+<title>Trips · TeslaTrack</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f3ef;
+  --surface: #fcfcfb;
+  --surface-2: #f0efec;
+  --border: #e2e0da;
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --text-3: #7c7a74;
+  --grid: #e6e4de;
+  --s-house: #2a78d6;
+  --s-solar: #eb6834;
+  --s-car: #1baf7a;
+  --s-cabin: #7a4fd4;
+  --wx-lo: #2f8fbf;
+  --wx-hi: #c97a12;
+  --wx-rain: #2a7fc9;
+  --s-outside: #c08a1e;
+  --t-left: #d1612f;
+  --t-right: #2a78d6;
+  --good: #0ca30c;
+  --warn: #b77800;
+  --crit: #d03b3b;
+  --accent: #2a78d6;
+  --accent-ink: #ffffff;
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --border: #2e2e2b;
+    --text: #f0efec;
+    --text-2: #c3c2b7;
+    --text-3: #8f8e86;
+    --grid: #2a2a27;
+    --s-house: #3987e5;
+    --s-solar: #d95926;
+    --s-car: #199e70;
+    --s-cabin: #a17ff0;
+    --wx-lo: #9fd4ec;
+    --wx-hi: #f0b45a;
+    --wx-rain: #7dbcf0;
+    --s-outside: #e0b04a;
+    --t-left: #e67a45;
+    --t-right: #4f97ec;
+    --good: #2fbf2f;
+    --warn: #fab219;
+    --crit: #e66767;
+    --accent: #3987e5;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211;
+  --surface: #1a1a19;
+  --surface-2: #232321;
+  --border: #2e2e2b;
+  --text: #f0efec;
+  --text-2: #c3c2b7;
+  --text-3: #8f8e86;
+  --grid: #2a2a27;
+  --s-house: #3987e5;
+  --s-solar: #d95926;
+  --s-car: #199e70;
+  --s-cabin: #a17ff0;
+  --wx-lo: #9fd4ec;
+  --wx-hi: #f0b45a;
+  --wx-rain: #7dbcf0;
+  --s-outside: #e0b04a;
+  --t-left: #e67a45;
+  --t-right: #4f97ec;
+  --good: #2fbf2f;
+  --warn: #fab219;
+  --crit: #e66767;
+  --accent: #3987e5;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+html { background: var(--bg); }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 20px 16px 48px; }
+header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+h1 { font-size: 20px; font-weight: 650; margin: 0; letter-spacing: -.01em; display: flex; align-items: center; gap: 9px; }
+h1 img { width: 28px; height: 28px; border-radius: 7px; }
+.nav { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 9px; }
+.nav a { font-size: 14px; color: var(--text-2); text-decoration: none; padding: 4px 12px; border-radius: 7px; }
+.nav a.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); font-weight: 550; }
+.pill {
+  font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--border); color: var(--text-2); background: var(--surface);
+}
+.pill.dry { color: var(--warn); border-color: currentColor; }
+.pill.live { color: var(--good); border-color: currentColor; }
+.pill.sim { color: var(--accent); border-color: currentColor; }
+.pill.stale { color: var(--crit); border-color: currentColor; }
+.clock { margin-left: auto; color: var(--text-3); font-size: 13px; font-variant-numeric: tabular-nums; }
+.theme { background: none; border: 1px solid var(--border); color: var(--text-2); border-radius: 8px;
+  font: inherit; font-size: 13px; padding: 3px 9px; cursor: pointer; }
+
+
+/* ---- energy scene */
+.scene { position: relative; border-radius: 18px; overflow: hidden; margin-bottom: 14px; border: 1px solid #262a31;
+  background: radial-gradient(120% 80% at 50% 0%, #19202c 0%, #121722 55%, #0c1016 100%); }
+.scene svg { display: block; width: 100%; max-width: 860px; height: auto; margin: 0 auto;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%); }
+.scene text { paint-order: stroke; stroke: rgba(4,8,16,.5); stroke-width: 4px; stroke-linejoin: round; }
+.scene .lbl { fill: #c9d0da; font-size: 24px; font-weight: 500; letter-spacing: .02em; }
+.scene .val { fill: #ffffff; font-size: 44px; font-weight: 650; letter-spacing: -.01em; }
+.scene .val .u { font-size: 26px; font-weight: 500; fill: #e9edf2; }
+.scene .val .up, .scene .val .soc { fill: #3ad38a; }
+.scene .sub { fill: #b9c1cc; font-size: 19px; }
+.scene .lead { stroke: #ffffff; stroke-opacity: .55; stroke-width: 1.3; }
+.scene .dot { fill: #ffffff; }
+.scene .flow { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 14;
+  animation: sceneflow 2s linear infinite; transition: opacity .6s; }
+.scene .flow.idle { opacity: 0; animation: none; }
+.scene .flow.rev { animation-direction: reverse; }
+@keyframes sceneflow { to { stroke-dashoffset: -64; } }
+.scene .cable { fill: none; stroke: #3ad38a; stroke-width: 4; stroke-linecap: round; opacity: 0; transition: opacity .6s; }
+.scene .cable.on { opacity: .9; }
+@media (max-width: 600px) {
+  .scene svg { -webkit-mask-image: none; mask-image: none; }
+  .scene #s-homesub { display: none; }
+  .scene .sub { font-size: 30px; fill: #d3d9e2; transform: translateY(20px); }
+  .scene #s-carrange { transform: translateY(28px); }
+  .scene .lead { stroke-width: 3; }
+  .scene .lbl { font-size: 36px; transform: translateY(-18px); }
+  .scene .val { font-size: 62px; }
+  .scene .val .u { font-size: 34px; }
+  .scene text { stroke-width: 7px; }
+}
+@media (prefers-reduced-motion: reduce) { .scene .flow { animation: none; stroke-dasharray: none; } }
+
+/* ---- two column top: picture left, controls right */
+.hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; align-items: stretch; margin-bottom: 14px; }
+.hero .scene { margin-bottom: 0; display: flex; align-items: center; }
+.hero .scene svg { max-width: none; }
+.hero .main { grid-template-columns: 1fr; margin-bottom: 0; align-content: start; }
+@media (max-width: 960px) {
+  .hero { grid-template-columns: 1fr; }
+  .hero .main { grid-template-columns: 1.25fr 1fr; }
+  .hero .scene svg { max-width: 760px; }
+}
+@media (max-width: 760px) { .hero .main { grid-template-columns: 1fr; } }
+@media (min-width: 961px) {
+  .hero .scene .lbl { font-size: 30px; }
+  .hero .scene .val { font-size: 54px; }
+  .hero .scene .val .u { font-size: 31px; }
+  .hero .scene .sub { font-size: 25px; }
+  .hero .scene .lead { stroke-width: 1.8; }
+  .hero .scene .lbl { transform: translateY(-6px); }
+  .hero .scene .sub { transform: translateY(6px); }
+}
+
+/* ---- full charge schedule */
+.sched { margin-bottom: 14px; }
+.sched .top { display: flex; align-items: flex-start; gap: 18px; flex-wrap: wrap; }
+.sched .headline { flex: 1 1 280px; }
+.sched .due { font-size: 22px; font-weight: 650; letter-spacing: -.01em; margin: 4px 0 2px; }
+.sched .due.ok { color: var(--text); }
+.sched .due.soon { color: var(--warn); }
+.sched .due.late { color: var(--crit); }
+.sched .meta { font-size: 13px; color: var(--text-2); }
+.sched .why { font-size: 12px; color: var(--text-3); margin-top: 6px; }
+.sched .why a { color: inherit; }
+.sched .btn { font: inherit; font-size: 13px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.sched .btn:hover { color: var(--text); border-color: var(--text-3); }
+.days7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 14px; }
+.day7 { border: 1px solid var(--border); border-radius: 10px; padding: 8px 6px; text-align: center; background: var(--surface); position: relative; }
+.day7 .dn { font-size: 12px; font-weight: 600; color: var(--text-2); }
+.day7 .dt { font-size: 11px; color: var(--text-3); }
+.day7 .ic { height: 26px; margin: 4px auto 2px; display: block; }
+.day7 .kw { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.day7 .lb { font-size: 11px; color: var(--text-3); min-height: 15px; }
+.day7.away { opacity: .55; }
+.day7.best { border-color: var(--good); box-shadow: inset 0 0 0 1px var(--good); }
+.day7 .tag { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 999px; white-space: nowrap; }
+.day7.best .tag { background: var(--good); color: #fff; }
+.day7.dueday:not(.best) .tag { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+@media (max-width: 560px) { .days7 { grid-template-columns: repeat(4, 1fr); row-gap: 14px; } .day7 .lb { display: none; } }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px 18px; box-shadow: var(--shadow);
+}
+.card h2 { font-size: 13px; font-weight: 600; color: var(--text-2); margin: 0 0 12px;
+  text-transform: uppercase; letter-spacing: .05em; }
+.grid { display: grid; gap: 14px; }
+.tile .label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+.swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.tile .value { font-size: 30px; font-weight: 650; letter-spacing: -.02em; margin-top: 4px;
+  font-variant-numeric: tabular-nums; line-height: 1.1; }
+.tile .value small { font-size: 15px; font-weight: 500; color: var(--text-2); margin-left: 3px; }
+.tile .sub { font-size: 13px; color: var(--text-3); margin-top: 4px; min-height: 19px; }
+
+.main { grid-template-columns: 1.25fr 1fr; margin-bottom: 14px; }
+@media (max-width: 760px) { .main { grid-template-columns: 1fr; } }
+.reason { font-size: 18px; font-weight: 550; line-height: 1.35; margin: 2px 0 14px; min-height: 48px; }
+.modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: var(--surface-2);
+  padding: 4px; border-radius: 10px; }
+.modes button {
+  font: inherit; font-size: 14px; font-weight: 550; border: 0; border-radius: 7px; padding: 8px 4px;
+  background: transparent; color: var(--text-2); cursor: pointer;
+}
+.modes button:hover { color: var(--text); }
+.modes button.on { background: var(--accent); color: var(--accent-ink); }
+.modes button:disabled { opacity: .6; cursor: wait; }
+.modehelp { font-size: 13px; color: var(--text-3); margin-top: 10px; min-height: 38px; }
+.meter { margin-top: 14px; }
+.meter .bar { position: relative; height: 10px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+.meter .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--s-car); border-radius: 5px; transition: width .6s; }
+.meter .mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text-2); }
+.meter .legend { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-3); margin-top: 6px; }
+
+dl.kv { display: grid; grid-template-columns: auto 1fr; gap: 7px 16px; margin: 0; font-size: 14px; }
+dl.kv dt { color: var(--text-2); }
+dl.kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.ok { color: var(--good); } .bad { color: var(--crit); } .warn { color: var(--warn); }
+
+.today { grid-template-columns: repeat(6, 1fr); margin-bottom: 14px; }
+@media (max-width: 900px) { .today { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 480px) { .today { grid-template-columns: repeat(2, 1fr); } }
+.stat .value { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.stat .value small { font-size: 13px; color: var(--text-2); font-weight: 500; margin-left: 2px; }
+.stat .label { font-size: 12px; color: var(--text-2); }
+
+.charthead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.charthead h2 { margin: 0; }
+.legendrow { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--text-2); }
+.legendrow span { display: inline-flex; align-items: center; gap: 6px; }
+.range { margin-left: auto; display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 8px; }
+.range button { font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--text-2);
+  padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.range button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.chart { position: relative; height: 280px; }
+.chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.chart .axis text { fill: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .gridline { stroke: var(--grid); stroke-width: 1; }
+.chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .solararea { opacity: .12; }
+.chart .cross { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart .dot { stroke: var(--surface); stroke-width: 2; }
+.chart .dlabel { font-size: 11px; font-weight: 600; fill: var(--text-2); }
+.tip {
+  position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 10px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  min-width: 150px; display: none; z-index: 5;
+}
+.tip .t { color: var(--text-3); font-size: 12px; margin-bottom: 4px; }
+.tip .r { display: flex; align-items: center; gap: 7px; }
+.tip .r b { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart.short { height: 220px; }
+.swatch.dashed { height: 3px; width: 14px; border-radius: 0; background: repeating-linear-gradient(90deg, var(--dash, var(--text-3)) 0 4px, transparent 4px 7px) !important; }
+.carstats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+.carstats[hidden] { display: none; }
+.cs { background: var(--surface-2); border-radius: 10px; padding: 9px 12px; }
+.cs .l { font-size: 12px; color: var(--text-2); }
+.cs .l span { color: var(--text-3); }
+.cs .v { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.cs .v small { font-size: 12px; color: var(--text-2); font-weight: 500; margin-left: 2px; }
+.cs .v .sub2 { font-size: 12px; font-weight: 500; color: var(--text-2); margin-top: 1px; }
+.cs .tyres { display: grid; grid-template-columns: auto auto; justify-content: start; column-gap: 18px; font-size: 15px; }
+.cs .tyres .low { color: var(--warn); }
+.cs .tyres .pos { font-size: 11px; font-weight: 600; color: var(--text-3); margin: 0 5px 0 0; }
+@media (max-width: 760px) { .carstats { grid-template-columns: 1fr 1fr; } }
+.exports { font-size: 13px; color: var(--text-3); margin-top: 12px; line-height: 1.7; }
+.exports a { color: var(--accent); text-decoration: none; margin-right: 10px; white-space: nowrap; }
+.exports a:hover { text-decoration: underline; }
+.legendrow b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.chartnote { font-size: 12px; color: var(--text-3); margin-top: 6px; }
+.empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--text-3); font-size: 14px; }
+
+.bottom { grid-template-columns: 1fr 1fr; }
+@media (max-width: 760px) { .bottom { grid-template-columns: 1fr; } }
+ul.events { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; font-size: 14px; }
+ul.events li { display: grid; grid-template-columns: 62px 1fr; gap: 10px; padding: 7px 0; border-top: 1px solid var(--border); }
+ul.events li:first-child { border-top: 0; }
+ul.events time { color: var(--text-3); font-variant-numeric: tabular-nums; font-size: 13px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 6px 4px; border-top: 1px solid var(--border); }
+th { font-weight: 600; color: var(--text-2); font-size: 12px; border-top: 0; }
+th:first-child, td:first-child { text-align: left; }
+.muted { color: var(--text-3); }
+footer { margin-top: 18px; font-size: 12px; color: var(--text-3); text-align: center; }
+
+.theme { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 30px; padding: 0 !important; }
+.theme svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.theme .i-moon path { fill: currentColor; stroke: none; }
+.theme .i-sun { display: none; }
+:root[data-theme="dark"] .theme .i-sun { display: block; }
+:root[data-theme="dark"] .theme .i-moon { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme .i-sun { display: block; }
+  :root:not([data-theme="light"]) .theme .i-moon { display: none; }
+}
+.theme:hover { color: var(--text); }
+
+/* ---- weather */
+.wx { margin-bottom: 14px; }
+.wxtop { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.wxnow { display: flex; align-items: center; gap: 14px; }
+.wxbig .ic { width: 52px; height: 52px; }
+.wxtemp { font-size: 34px; font-weight: 650; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.wxcond { font-size: 13px; color: var(--text-2); margin-top: 4px; }
+.wxtoday { text-align: right; font-size: 20px; font-variant-numeric: tabular-nums; }
+.wxtoday .lbl { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; }
+.wxtoday .range2 { display: inline-flex; align-items: baseline; gap: 5px; }
+.wxtoday .k { font-size: 12px; color: var(--text-2); }
+.wxtoday .k + .lo, .wxtoday .k + .hi { margin-right: 8px; }
+.wxtoday .hi { margin-right: 0 !important; }
+.wxtoday .lo { color: var(--wx-lo); font-weight: 600; margin-right: 6px; }
+.wxtoday .hi { color: var(--wx-hi); font-weight: 600; }
+.wxtoday .rain { font-size: 13px; color: var(--wx-rain); margin-top: 4px; }
+.wxhours { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(58px, 1fr); gap: 4px; margin-top: 14px;
+  overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.wxhours::-webkit-scrollbar { display: none; }
+.wxh { text-align: center; padding: 8px 2px; border-radius: 10px; }
+.wxh.now { background: var(--surface-2); }
+.wxh .t { font-size: 12px; color: var(--text-2); }
+.wxh .ic { width: 28px; height: 28px; margin: 5px auto 3px; display: block; }
+.wxh .tp { font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.wxh .rn { font-size: 11px; color: var(--wx-rain); margin-top: 2px; }
+.wxh .pv { font-size: 11px; color: var(--text-3); margin-top: 1px; font-variant-numeric: tabular-nums; }
+.wxnote { font-size: 12px; color: var(--text-3); margin-top: 8px; }
+@media (max-width: 600px) { .wxtoday { text-align: left; width: 100%; } }
+.wxnote a { color: inherit; }
+
+/* ---- views: the car charts live on /car, everything else on / */
+.wrap.v-main > .carview { display: none; }
+.wrap.v-car > *:not(header):not(.carview):not(footer) { display: none !important; }
+
+/* ---- car status, notices and battery health */
+.cstat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 760px) { .cstat { grid-template-columns: 1fr 1fr; } }
+.cs .v.sm { font-size: 15px; font-weight: 600; }
+.cs .v .ok { color: var(--good); }
+.cs .v .warn { color: var(--warn); }
+.cs .v .dim { color: var(--text-3); font-weight: 500; }
+.notices:empty { display: none; }
+.notices { display: grid; gap: 6px; margin: 10px 0 12px; }
+.notice { font-size: 13px; padding: 8px 11px; border-radius: 9px; background: var(--surface-2); border-left: 3px solid var(--warn); }
+.notice.info { border-left-color: var(--accent); }
+.hstats { margin: 0 0 10px; }
+
+#carstats { margin-top: 10px; }
+#carstats[hidden] { display: none; }
+.subhead { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+.subh { font-size: 12px; font-weight: 600; color: var(--text-3); margin: 0; letter-spacing: .06em; text-transform: uppercase; }
+nav a[hidden] { display: none !important; }
+</style>
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+<style>
+.ttiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
+@media (max-width: 760px) { .ttiles { grid-template-columns: repeat(2, 1fr); } }
+.ttiles .cs .v { font-size: 22px; }
+.tripmap { height: 380px; border-radius: 12px; overflow: hidden; background: var(--surface-2); position: relative; z-index: 0; }
+@media (max-width: 600px) { .tripmap { height: 280px; } }
+:root[data-theme="dark"] .tripmap .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tripmap .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); } }
+.tripinfo { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 12px 2px 2px; font-size: 14px; color: var(--text-2); }
+.tripinfo b { color: var(--text); font-weight: 600; }
+.tripinfo .route { width: 100%; font-size: 16px; color: var(--text); font-weight: 600; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 8px 6px; border-top: 1px solid var(--border); white-space: nowrap; }
+th { font-weight: 600; color: var(--text-2); font-size: 12px; border-top: 0; }
+th:nth-child(-n+2), td:nth-child(-n+2) { text-align: left; }
+td.where { white-space: normal; min-width: 150px; }
+tr.day td { border-top: 0; padding: 16px 6px 4px; text-align: left; font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; }
+tr.day td span { font-weight: 500; color: var(--text-3); text-transform: none; letter-spacing: 0; margin-left: 8px; }
+tbody tr.trip { cursor: pointer; }
+tbody tr.trip:hover td { background: var(--surface-2); }
+tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
+.tablewrap { overflow-x: auto; }
+.pill.dc { color: var(--accent); }
+@media (max-width: 700px) { .hide-sm { display: none; } th, td { padding: 8px 4px; } }
+.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.toolbar h2 { margin: 0; }
+.dl { font: inherit; font-size: 13px; background: none; border: 1px solid var(--border); color: var(--text-2); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+.dl:hover { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><img src="/img/icon-180.png" alt="">TeslaTrack</h1>
+    <nav class="nav"><a href="/">Car</a><a href="/trips" class="on">Trips</a><a href="#" id="nav-solar">SolarCharge</a></nav>
+    <span id="runpill" class="pill">Connecting</span>
+    <span class="clock" id="clock"></span>
+    <button class="theme" id="theme" type="button" aria-label="Switch between light and dark" title="Light or dark"><svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg></button>
+  </header>
+
+  <div class="toolbar">
+    <div class="range" id="period" style="margin-left:0">
+      <button type="button" data-d="7">7 d</button>
+      <button type="button" data-d="30" class="on">30 d</button>
+      <button type="button" data-d="90">90 d</button>
+      <button type="button" data-d="365">Year</button>
+      <button type="button" data-d="0">All</button>
+    </div>
+    <button class="dl" id="csv" type="button" style="margin-left:auto">Download CSV</button>
+  </div>
+
+  <section class="ttiles">
+    <div class="cs"><div class="l">Trips</div><div class="v" id="k-trips"></div></div>
+    <div class="cs"><div class="l">Distance</div><div class="v" id="k-km"></div></div>
+    <div class="cs"><div class="l">Energy used</div><div class="v" id="k-kwh"></div></div>
+    <div class="cs"><div class="l">Efficiency</div><div class="v" id="k-eff"></div></div>
+    <div class="cs"><div class="l">Time driving</div><div class="v" id="k-time"></div></div>
+  </section>
+
+  <section class="card" style="margin-bottom:14px">
+    <h2 id="maptitle">Trip</h2>
+    <div class="tripmap" id="map"></div>
+    <div class="tripinfo" id="tripinfo"></div>
+  </section>
+
+  <section class="card" style="margin-bottom:14px">
+    <h2>Trips</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Time</th><th>From and to</th><th>km</th><th class="hide-sm">Minutes</th><th>Wh/km</th>
+          <th class="hide-sm">kWh</th><th class="hide-sm">Battery</th><th class="hide-sm">Top km/h</th><th class="hide-sm">Outside</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" style="margin-bottom:14px">
+    <h2>Charging away from home</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Date</th><th>Where</th><th>kWh</th><th class="hide-sm">Minutes</th><th>Cost</th></tr></thead>
+        <tbody id="away"></tbody>
+      </table>
+    </div>
+    <div class="chartnote">Costs are estimates from the away charging prices in config.ini. Home charging is on SolarCharge's Sessions page.</div>
+  </section>
+
+  <footer id="footer">Trips and routes are kept only on this Pi. Map data &copy; OpenStreetMap contributors.</footer>
+</div>
+<script src="/vendor/leaflet/leaflet.js"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  try {
+    var saved = localStorage.getItem("tt-theme");
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+  } catch (e) {}
+  $("theme").addEventListener("click", function () {
+    var cur = document.documentElement.getAttribute("data-theme");
+    var dark = cur ? cur === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    var next = dark ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("tt-theme", next); } catch (e) {}
+  });
+  function hm(t) { var d = new Date(t * 1000); return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function dur(m) { return m >= 60 ? Math.floor(m / 60) + " h " + (m % 60) + " min" : m + " min"; }
+  function place(p, loc) { return p ? esc(p) : loc ? "Unknown place" : "<span class='muted'>n/a</span>"; }
+  function na(v, f) { return v === null || v === undefined ? "<span class='muted'>n/a</span>" : f ? f(v) : v; }
+
+  var trips = [], away = [], days = 30, selected = null, map = null, layer = null, clockBase = null;
+
+  function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+  function initMap() {
+    if (map || !window.L) return;
+    map = L.map("map", { zoomControl: true, attributionControl: true }).setView([-27.56, 151.95], 11);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>"
+    }).addTo(map);
+    layer = L.layerGroup().addTo(map);
+  }
+  function showTrip(id) {
+    selected = id;
+    document.querySelectorAll("tr.trip").forEach(function (tr) { tr.classList.toggle("sel", tr.getAttribute("data-id") === String(id)); });
+    fetch("/api/trip/" + id, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (t) {
+      initMap();
+      var d = new Date(t.start * 1000);
+      $("maptitle").textContent = d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) + ", " + hm(t.start) + " to " + hm(t.end);
+      $("tripinfo").innerHTML = "<div class='route'>" + place(t.start_place, t.start_loc) + " to " + place(t.end_place, t.end_loc) + "</div>" +
+        "<span><b>" + t.km.toFixed(1) + "</b> km</span><span><b>" + dur(t.minutes) + "</b></span>" +
+        (t.wh_km ? "<span><b>" + t.wh_km + "</b> Wh/km</span>" : "") + (t.kwh ? "<span><b>" + t.kwh.toFixed(1) + "</b> kWh</span>" : "") +
+        (t.soc_start !== null && t.soc_end !== null ? "<span>Battery <b>" + t.soc_start + "% to " + t.soc_end + "%</b></span>" : "") +
+        (t.avg_kmh ? "<span>Average <b>" + t.avg_kmh + "</b> km/h</span>" : "") + (t.top_kmh ? "<span>Top <b>" + t.top_kmh + "</b> km/h</span>" : "") +
+        (t.outside !== null && t.outside !== undefined ? "<span>Outside <b>" + Math.round(t.outside) + "\u00b0C</b></span>" : "");
+      if (!map) return;
+      layer.clearLayers();
+      var pts = (t.route || []).map(function (p) { return [p[0], p[1]]; });
+      if (!pts.length && t.start_loc && t.end_loc) pts = [t.start_loc, t.end_loc];
+      if (!pts.length) return;
+      var green = cssVar("--s-car") || "#1baf7a";
+      L.polyline(pts, { color: green, weight: 5, opacity: .9 }).addTo(layer);
+      L.circleMarker(pts[0], { radius: 7, color: "#fff", weight: 2, fillColor: green, fillOpacity: 1 }).bindTooltip("Start").addTo(layer);
+      L.circleMarker(pts[pts.length - 1], { radius: 7, color: "#fff", weight: 2, fillColor: "#e5484d", fillOpacity: 1 }).bindTooltip("End").addTo(layer);
+      map.fitBounds(L.latLngBounds(pts).pad(0.15));
+    }).catch(function () {});
+  }
+  function inPeriod(list, key) {
+    var cut = days ? Date.now() / 1000 - days * 86400 : 0;
+    return list.filter(function (t) { return t[key] >= cut; });
+  }
+  function render() {
+    var list = inPeriod(trips, "start").sort(function (a, b) { return b.start - a.start; });
+    var km = 0, kwh = 0, kwhKm = 0, mins = 0;
+    list.forEach(function (t) { km += t.km; mins += t.minutes; if (t.kwh) { kwh += t.kwh; kwhKm += t.km; } });
+    $("k-trips").textContent = list.length;
+    $("k-km").innerHTML = Math.round(km).toLocaleString() + "<small>km</small>";
+    $("k-kwh").innerHTML = kwh.toFixed(1) + "<small>kWh</small>";
+    $("k-eff").innerHTML = kwhKm >= 1 ? Math.round(kwh * 1000 / kwhKm) + "<small>Wh/km</small>" : "<span class='muted'>n/a</span>";
+    $("k-time").innerHTML = mins >= 60 ? Math.floor(mins / 60) + "<small>h</small> " + (mins % 60) + "<small>min</small>" : mins + "<small>min</small>";
+    var html = "", lastDay = null;
+    list.forEach(function (t) {
+      var d = new Date(t.start * 1000), key = d.toDateString();
+      if (key !== lastDay) {
+        lastDay = key;
+        var dayTrips = list.filter(function (x) { return new Date(x.start * 1000).toDateString() === key; });
+        var dkm = dayTrips.reduce(function (a, x) { return a + x.km; }, 0);
+        html += "<tr class='day'><td colspan='9'>" + d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) +
+          "<span>" + dayTrips.length + (dayTrips.length === 1 ? " trip, " : " trips, ") + dkm.toFixed(0) + " km</span></td></tr>";
+      }
+      html += "<tr class='trip" + (t.id === selected ? " sel" : "") + "' data-id='" + t.id + "'><td>" + hm(t.start) + "</td><td class='where'>" +
+        place(t.start_place, t.start_loc) + " to " + place(t.end_place, t.end_loc) + "</td><td>" + t.km.toFixed(1) +
+        "</td><td class='hide-sm'>" + t.minutes + "</td><td>" + na(t.wh_km) + "</td><td class='hide-sm'>" + na(t.kwh, function (v) { return v.toFixed(1); }) +
+        "</td><td class='hide-sm'>" + (t.soc_start !== null && t.soc_end !== null ? t.soc_start + "% to " + t.soc_end + "%" : na(null)) +
+        "</td><td class='hide-sm'>" + na(t.top_kmh) + "</td><td class='hide-sm'>" + na(t.outside, function (v) { return Math.round(v) + "\u00b0"; }) + "</td></tr>";
+    });
+    $("rows").innerHTML = html || "<tr><td colspan='9' class='muted' style='text-align:center;padding:24px'>No trips in this period yet. Each drive is added a few minutes after the car is parked.</td></tr>";
+    var aw = inPeriod(away, "start").sort(function (a, b) { return b.start - a.start; });
+    $("away").innerHTML = aw.map(function (a) {
+      return "<tr><td>" + new Date(a.start * 1000).toLocaleDateString([], { day: "numeric", month: "short" }) + " " + hm(a.start) + "</td><td>" +
+        (a.place ? esc(a.place) : "<span class='muted'>Unknown</span>") + " <span class='pill " + a.kind + "'>" + (a.kind === "dc" ? "Fast charger" : "Public AC") +
+        "</span></td><td>" + a.kwh.toFixed(1) + "</td><td class='hide-sm'>" + Math.round((a.end - a.start) / 60) + "</td><td>$" + a.cost.toFixed(2) + "</td></tr>";
+    }).join("") || "<tr><td colspan='5' class='muted' style='text-align:center;padding:18px'>None in this period.</td></tr>";
+    if (!selected && list.length) showTrip(list[0].id);
+    if (!list.length) { $("maptitle").textContent = "Trip"; $("tripinfo").innerHTML = "<span class='muted'>Pick a trip to see its route.</span>"; initMap(); }
+  }
+  $("rows").addEventListener("click", function (e) {
+    var tr = e.target.closest("tr.trip");
+    if (tr) { showTrip(parseInt(tr.getAttribute("data-id"), 10)); $("map").scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+  });
+  $("period").addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    days = parseInt(b.getAttribute("data-d"), 10);
+    $("period").querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", x === b); });
+    selected = null;
+    render();
+  });
+  $("csv").addEventListener("click", function () {
+    var cols = ["start", "end", "start_place", "end_place", "km", "minutes", "kwh", "wh_km", "avg_kmh", "top_kmh", "soc_start", "soc_end", "outside"];
+    var lines = [["date"].concat(cols).join(",")];
+    inPeriod(trips, "start").sort(function (a, b) { return a.start - b.start; }).forEach(function (t) {
+      var d = new Date(t.start * 1000);
+      var row = [d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2)];
+      cols.forEach(function (c) {
+        var v = t[c];
+        if (c === "start" || c === "end") v = hm(v);
+        if (v === null || v === undefined) v = "";
+        row.push(/[,"]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v);
+      });
+      lines.push(row.join(","));
+    });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([lines.join("\n") + "\n"], { type: "text/csv" }));
+    a.download = "teslatrack-trips.csv";
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  function poll() {
+    Promise.all([
+      fetch("/api/trips", { cache: "no-store" }).then(function (r) { return r.json(); }),
+      fetch("/api/charging", { cache: "no-store" }).then(function (r) { return r.json(); })
+    ]).then(function (res) { trips = res[0] || []; away = res[1] || []; render(); }).catch(function () {});
+  }
+  function pollStatus() {
+    fetch("/api/status", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (s) {
+      clockBase = [s.time, Date.now() / 1000];
+      var pill = $("runpill");
+      pill.textContent = s.simulated ? "Simulation" : s.stream.connected ? "Live" : "Connecting";
+      pill.className = "pill " + (s.simulated ? "sim" : s.stream.connected ? "live" : "stale");
+      var port = s.solarcharge && s.solarcharge.port, a = $("nav-solar");
+      if (port) a.href = location.protocol + "//" + location.hostname + ":" + port + "/"; else a.hidden = true;
+    }).catch(function () {});
+  }
+  setInterval(function () {
+    if (!clockBase) return;
+    var t = clockBase[0] + (Date.now() / 1000 - clockBase[1]);
+    $("clock").textContent = new Date(t * 1000).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
+  }, 1000);
+  pollStatus(); poll();
+  setInterval(pollStatus, 30000); setInterval(poll, 120000);
+})();
+</script>
+</body>
+</html>
