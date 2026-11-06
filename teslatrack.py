@@ -91,7 +91,8 @@ DEFAULTS = {
 
 class Settings(object):
     def __init__(self, path):
-        cp = configparser.ConfigParser()
+        # strict=False: a setting listed twice (say, a line added twice) uses the last one instead of failing
+        cp = configparser.ConfigParser(strict=False)
         cp.read_dict(DEFAULTS)
         if path:
             cp.read(path)
