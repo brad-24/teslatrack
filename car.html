@@ -380,7 +380,7 @@ nav a[hidden] { display: none !important; }
 <div class="wrap" id="wrap">
   <header>
     <h1><img src="/img/icon-180.png" alt="">TeslaTrack</h1>
-    <nav class="nav"><a href="/" class="on">Car</a><a href="/trips">Trips</a><a href="#" id="nav-solar">SolarCharge</a></nav>
+    <nav class="nav"><a href="/" class="on">Car</a><a href="/trips">Trips</a></nav>
     <span id="runpill" class="pill">Connecting</span>
     <span class="clock" id="clock"></span>
     <button class="theme" id="theme" type="button" aria-label="Switch between light and dark" title="Light or dark"><svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg></button>
@@ -519,12 +519,6 @@ nav a[hidden] { display: none !important; }
   }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function setText(id, html) { var el = $(id); if (el.innerHTML !== html) el.innerHTML = html; }
-  // link to SolarCharge on the same Pi
-  function solarLink(port) {
-    var a = $("nav-solar");
-    if (!port) { a.hidden = true; return; }
-    a.href = location.protocol + "//" + location.hostname + ":" + port + "/";
-  }
   var clockBase = null;
   function tickClock() {
     if (!clockBase) return;
@@ -1046,7 +1040,6 @@ nav a[hidden] { display: none !important; }
     state = s;
     clockBase = [s.time, Date.now() / 1000];
     tickClock();
-    solarLink(s.solarcharge && s.solarcharge.port);
     wxRain12 = s.solarcharge ? s.solarcharge.rain12 : null;
     var pill = $("runpill");
     pill.textContent = s.simulated ? "Simulation" : s.stream.connected ? "Live" : "Connecting";

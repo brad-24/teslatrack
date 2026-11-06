@@ -410,7 +410,7 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
 <div class="wrap">
   <header>
     <h1><img src="/img/icon-180.png" alt="">TeslaTrack</h1>
-    <nav class="nav"><a href="/">Car</a><a href="/trips" class="on">Trips</a><a href="#" id="nav-solar">SolarCharge</a></nav>
+    <nav class="nav"><a href="/">Car</a><a href="/trips" class="on">Trips</a></nav>
     <span id="runpill" class="pill">Connecting</span>
     <span class="clock" id="clock"></span>
     <button class="theme" id="theme" type="button" aria-label="Switch between light and dark" title="Light or dark"><svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg></button>
@@ -605,8 +605,6 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
       var pill = $("runpill");
       pill.textContent = s.simulated ? "Simulation" : s.stream.connected ? "Live" : "Connecting";
       pill.className = "pill " + (s.simulated ? "sim" : s.stream.connected ? "live" : "stale");
-      var port = s.solarcharge && s.solarcharge.port, a = $("nav-solar");
-      if (port) a.href = location.protocol + "//" + location.hostname + ":" + port + "/"; else a.hidden = true;
     }).catch(function () {});
   }
   setInterval(function () {

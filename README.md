@@ -83,7 +83,7 @@ TeslaTrack works out "home" by itself: from where the car is plugged into the Wa
 
 If SolarCharge runs on the same Pi:
 
-* TeslaTrack's header links to it, and it shows SolarCharge's rain forecast in the car notices
+* TeslaTrack uses SolarCharge's rain forecast in the car notices
 * SolarCharge can take the car's battery level, charge limit and time to full from TeslaTrack (`stream = teslatrack` under `[tesla]` in SolarCharge's config.ini), so only one app holds the Teslemetry stream
 * SolarCharge's Full charge card learns which days the car is usually home
 

@@ -72,9 +72,8 @@ DEFAULTS = {
         "away_ac_c_per_kwh": "40",
     },
     "solarcharge": {
-        # SolarCharge on this Pi, for the link in the header and the rain forecast. Blank to turn off.
+        # SolarCharge on this Pi, for learning where home is and the rain forecast. Blank to turn off.
         "url": "http://localhost:8080",
-        "port": "8080",
     },
     "storage": {
         "data_dir": "~/teslatrack/data",
@@ -112,7 +111,6 @@ class Settings(object):
         self.away_dc_price = gf("tariff", "away_dc_c_per_kwh") / 100.0
         self.away_ac_price = gf("tariff", "away_ac_c_per_kwh") / 100.0
         self.sc_url = g("solarcharge", "url").rstrip("/")
-        self.sc_port = int(gf("solarcharge", "port") or 0)
         self.data_dir = ex(g("storage", "data_dir"))
         self.save_minutes = gf("storage", "save_minutes")
         self.events_max = int(gf("storage", "events_max_kb") * 1024)
@@ -906,7 +904,7 @@ class Tracker(object):
                          if tr.get("start_odo") is not None and v.get("odo_km") is not None else None} if tr else None,
                 "away": dict(self.away) if self.away else None,
                 "today": days[self.today_key],
-                "solarcharge": {"port": self.s.sc_port, "rain12": self.solar.get("rain12")},
+                "solarcharge": {"rain12": self.solar.get("rain12")},
                 "events": list(self.events)[:25],
             }
 
