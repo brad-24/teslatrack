@@ -10,7 +10,7 @@ It's the companion to [SolarCharge](https://github.com/brad-24/solarcharge), whi
 
 ## Features
 
-* **Trips**: every drive logged automatically, with a map of the route, distance, time, energy used, Wh/km, battery used, top and average speed, outside temperature, and where it started and ended (Home, or the suburb). Totals for 7 days, 30 days, 90 days, a year or all time, and a CSV download
+* **Trips**: every drive logged automatically, with a map of the route, distance, time, energy used, Wh/km, battery used, top and average speed, outside temperature, and where it started and ended (Home, or the suburb). Totals for 7 days, 30 days, 90 days, a year or all time, and a CSV download. Tap Mark to flag a work trip: work kilometres are totalled for the period and each day, and the CSV has a work column for your logbook
 * **Car status**: locks, doors, windows, Sentry, home or away, range, odometer, distance and top speed today, software version, with notices like a window left open when rain is forecast, or the car unlocked at home overnight
 * **Battery**: level over the last day to 90 days, and battery health: usable capacity logged from each charge to 95% or more, and how well balanced the cells are, charted over months and years
 * **Temperatures**: cabin and outside, so you can see how hot the car gets parked in the sun

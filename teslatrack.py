@@ -952,6 +952,18 @@ class Tracker(object):
         with self.lock:
             return [dict(t) for t in self.trips if t["start"] >= cut]
 
+    def set_work(self, tid, work):
+        """Mark a trip as a work trip (or not). Saved straight away, since it's something you entered."""
+        with self.lock:
+            rec = next((t for t in self.trips if t["id"] == tid), None)
+            if rec is None:
+                return False
+            rec["work"] = bool(work)
+            trips = list(self.trips)
+        if self.store:
+            self.store.save_trips(trips)
+        return True
+
     def get_trip(self, tid):
         with self.lock:
             rec = next((dict(t) for t in self.trips if t["id"] == tid), None)
@@ -1077,6 +1089,24 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._send(body, "text/csv; charset=utf-8",
                            extra={"Content-Disposition": 'attachment; filename="teslatrack-daily.csv"'})
+        else:
+            self.send_error(404)
+
+    def do_POST(self):
+        u = urlparse(self.path)
+        parts = u.path.strip("/").split("/")
+        if len(parts) == 4 and parts[:2] == ["api", "trip"] and parts[3] == "work":
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                body = json.loads(self.rfile.read(min(n, 1000)) or b"{}")
+                ok = self.tracker.set_work(int(parts[2]), body.get("work"))
+            except (ValueError, AttributeError):
+                self.send_error(400)
+                return
+            if ok:
+                self._json({"ok": True})
+            else:
+                self.send_error(404)
         else:
             self.send_error(404)
 

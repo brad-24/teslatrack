@@ -395,6 +395,12 @@ td.where { white-space: normal; min-width: 150px; }
 tr.day td { border-top: 0; padding: 16px 6px 4px; text-align: left; font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; }
 tr.day td span { font-weight: 500; color: var(--text-3); text-transform: none; letter-spacing: 0; margin-left: 8px; }
 tbody tr.trip { cursor: pointer; }
+button.work { font: inherit; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: var(--text-3); }
+button.work:hover { color: var(--text); }
+button.work.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button.work:disabled { opacity: .6; cursor: wait; }
+h2 .worksum { float: right; font-size: 13px; font-weight: 500; color: var(--text-2); text-transform: none; letter-spacing: 0; }
 tbody tr.trip:hover td { background: var(--surface-2); }
 tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
 .tablewrap { overflow-x: auto; }
@@ -442,10 +448,10 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
   </section>
 
   <section class="card" style="margin-bottom:14px">
-    <h2>Trips</h2>
+    <h2>Trips <span class="worksum" id="worksum"></span></h2>
     <div class="tablewrap">
       <table>
-        <thead><tr><th>Time</th><th>From and to</th><th>km</th><th class="hide-sm">Minutes</th><th>Wh/km</th>
+        <thead><tr><th>Time</th><th>From and to</th><th>km</th><th>Work</th><th class="hide-sm">Minutes</th><th>Wh/km</th>
           <th class="hide-sm">kWh</th><th class="hide-sm">Battery</th><th class="hide-sm">Top km/h</th><th class="hide-sm">Outside</th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
@@ -543,16 +549,21 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
         lastDay = key;
         var dayTrips = list.filter(function (x) { return new Date(x.start * 1000).toDateString() === key; });
         var dkm = dayTrips.reduce(function (a, x) { return a + x.km; }, 0);
-        html += "<tr class='day'><td colspan='9'>" + d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) +
-          "<span>" + dayTrips.length + (dayTrips.length === 1 ? " trip, " : " trips, ") + dkm.toFixed(0) + " km</span></td></tr>";
+        var dwork = dayTrips.reduce(function (a, x) { return a + (x.work ? x.km : 0); }, 0);
+        html += "<tr class='day'><td colspan='10'>" + d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) +
+          "<span>" + dayTrips.length + (dayTrips.length === 1 ? " trip, " : " trips, ") + dkm.toFixed(0) + " km" + (dwork ? ", " + dwork.toFixed(0) + " km work" : "") + "</span></td></tr>";
       }
       html += "<tr class='trip" + (t.id === selected ? " sel" : "") + "' data-id='" + t.id + "'><td>" + hm(t.start) + "</td><td class='where'>" +
         place(t.start_place, t.start_loc) + " to " + place(t.end_place, t.end_loc) + "</td><td>" + t.km.toFixed(1) +
-        "</td><td class='hide-sm'>" + t.minutes + "</td><td>" + na(t.wh_km) + "</td><td class='hide-sm'>" + na(t.kwh, function (v) { return v.toFixed(1); }) +
+        "</td><td><button type='button' class='work" + (t.work ? " on" : "") + "' aria-pressed='" + !!t.work + "' title='Mark as a work trip'>" +
+        (t.work ? "Work" : "Mark") + "</button></td><td class='hide-sm'>" + t.minutes + "</td><td>" + na(t.wh_km) + "</td><td class='hide-sm'>" + na(t.kwh, function (v) { return v.toFixed(1); }) +
         "</td><td class='hide-sm'>" + (t.soc_start !== null && t.soc_end !== null ? t.soc_start + "% to " + t.soc_end + "%" : na(null)) +
         "</td><td class='hide-sm'>" + na(t.top_kmh) + "</td><td class='hide-sm'>" + na(t.outside, function (v) { return Math.round(v) + "\u00b0"; }) + "</td></tr>";
     });
-    $("rows").innerHTML = html || "<tr><td colspan='9' class='muted' style='text-align:center;padding:24px'>No trips in this period yet. Each drive is added a few minutes after the car is parked.</td></tr>";
+    $("rows").innerHTML = html || "<tr><td colspan='10' class='muted' style='text-align:center;padding:24px'>No trips in this period yet. Each drive is added a few minutes after the car is parked.</td></tr>";
+    var wk = list.filter(function (t) { return t.work; });
+    $("worksum").textContent = wk.length ? "Work: " + wk.reduce(function (a, t) { return a + t.km; }, 0).toFixed(1) + " km, " +
+      wk.length + (wk.length === 1 ? " trip" : " trips") : "";
     var aw = inPeriod(away, "start").sort(function (a, b) { return b.start - a.start; });
     $("away").innerHTML = aw.map(function (a) {
       return "<tr><td>" + new Date(a.start * 1000).toLocaleDateString([], { day: "numeric", month: "short" }) + " " + hm(a.start) + "</td><td>" +
@@ -563,6 +574,16 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     if (!list.length) { $("maptitle").textContent = "Trip"; $("tripinfo").innerHTML = "<span class='muted'>Pick a trip to see its route.</span>"; initMap(); }
   }
   $("rows").addEventListener("click", function (e) {
+    var wb = e.target.closest("button.work");
+    if (wb) {
+      var id = parseInt(wb.closest("tr.trip").getAttribute("data-id"), 10);
+      var t = trips.filter(function (x) { return x.id === id; })[0];
+      if (!t) return;
+      wb.disabled = true;
+      fetch("/api/trip/" + id + "/work", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ work: !t.work }) })
+        .then(function (r) { if (r.ok) t.work = !t.work; }).catch(function () {}).then(render);
+      return;
+    }
     var tr = e.target.closest("tr.trip");
     if (tr) { showTrip(parseInt(tr.getAttribute("data-id"), 10)); $("map").scrollIntoView({ behavior: "smooth", block: "nearest" }); }
   });
@@ -575,7 +596,7 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     render();
   });
   $("csv").addEventListener("click", function () {
-    var cols = ["start", "end", "start_place", "end_place", "km", "minutes", "kwh", "wh_km", "avg_kmh", "top_kmh", "soc_start", "soc_end", "outside"];
+    var cols = ["start", "end", "start_place", "end_place", "km", "minutes", "kwh", "wh_km", "avg_kmh", "top_kmh", "soc_start", "soc_end", "outside", "work"];
     var lines = [["date"].concat(cols).join(",")];
     inPeriod(trips, "start").sort(function (a, b) { return a.start - b.start; }).forEach(function (t) {
       var d = new Date(t.start * 1000);
@@ -583,6 +604,7 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
       cols.forEach(function (c) {
         var v = t[c];
         if (c === "start" || c === "end") v = hm(v);
+        if (c === "work") v = t.work ? "yes" : "no";
         if (v === null || v === undefined) v = "";
         row.push(/[,"]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v);
       });
