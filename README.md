@@ -71,7 +71,7 @@ In the Teslemetry console, under Telemetry Configuration, turn on the fields for
 | Temps | InsideTemp, OutsideTemp |
 | Tyres | TpmsPressureFl, TpmsPressureFr, TpmsPressureRl, TpmsPressureRr |
 | Car status | Locked, DoorState, FdWindow, FpWindow, RdWindow, RpWindow, SentryMode, RatedRange, Version, SoftwareUpdateVersion |
-| Away charging | FastChargerPresent, DCChargingEnergyIn, ACChargingEnergyIn |
+| Away charging | FastChargerPresent, FastChargerType (to spot Superchargers), DCChargingEnergyIn, ACChargingEnergyIn |
 
 For smoother route lines, give Location a short interval (10 to 30 seconds) in the same screen.
 

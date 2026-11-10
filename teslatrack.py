@@ -206,6 +206,10 @@ def parse_fields(data):
         v = _enum(data["Gear"], "ShiftState")
         if v in ("P", "R", "N", "D"):
             upd["gear"] = v
+    if "FastChargerType" in data:
+        v = _text(data["FastChargerType"])
+        if v:
+            upd["fast_type"] = v
     if "FastChargerPresent" in data:
         v = _bool(data["FastChargerPresent"])
         if v is not None:
@@ -514,6 +518,8 @@ class Tracker(object):
                 if upd.get(key) is not None:
                     self._battery_in(now, key, upd[key], v.get(key), upd.get("fast_charger", v.get("fast_charger")),
                                      upd.get("home", v.get("home")))
+            if self.away is not None and "supercharger" in str(upd.get("fast_type", v.get("fast_type")) or "").lower():
+                self.away["supercharger"] = True
             self._trip_update(now, upd, v, loc)
             v.update(upd)
             v["t"] = time.time()
@@ -626,14 +632,16 @@ class Tracker(object):
         price = self.s.away_dc_price if a["kind"] == "dc" else self.s.away_ac_price
         kwh = round(a["kwh"], 2)
         place = self.places.name(*a["loc"]) if a.get("loc") else None
+        sc = bool(a.get("supercharger")) or "supercharger" in (place or "").lower()
         rec = {"start": int(a["start"]), "end": int(a["last"]), "kwh": kwh, "kind": a["kind"],
-               "cost": round(kwh * price, 2), "price": price, "place": place}
+               "cost": round(kwh * price, 2), "price": price, "place": place, "supercharger": sc}
         with self.lock:
             self.charging.append(rec)
         if self.store:
             self.store.save_charging(self.charging)
-        self.event("Away charging: %.1f kWh at a %s charger%s, about $%.2f" %
-                   (kwh, "fast" if a["kind"] == "dc" else "public AC", " in " + place if place else "", rec["cost"]))
+        self.event("Away charging: %.1f kWh at a %s%s, about $%.2f" %
+                   (kwh, "Supercharger" if sc else "fast charger" if a["kind"] == "dc" else "public AC charger",
+                    " in " + place if place else "", rec["cost"]))
 
     # ---- trips
 
@@ -1187,7 +1195,7 @@ def simulate(tracker, clock):
                 tracker._sim_routes[rec["id"]] = pts
                 start = tt + 2 * 3600
     tracker.charging.append({"start": int(clock() - 3 * 86400), "end": int(clock() - 3 * 86400 + 1800), "kwh": 24.6,
-                             "kind": "dc", "cost": 14.76, "price": 0.6, "place": "Gatton"})
+                             "kind": "dc", "cost": 14.76, "price": 0.6, "place": "Gatton", "supercharger": True})
 
     def feed():
         odo, soc, ac = 12480.0, 64.0, 0.0

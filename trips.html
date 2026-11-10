@@ -418,6 +418,7 @@ tbody tr.trip:hover td { background: var(--surface-2); }
 tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
 .tablewrap { overflow-x: auto; }
 .pill.dc { color: var(--accent); }
+.pill.sc { color: var(--crit); }
 @media (max-width: 700px) { .hide-sm { display: none; } th, td { padding: 8px 4px; } }
 .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .toolbar h2 { margin: 0; }
@@ -580,7 +581,7 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     var aw = inPeriod(away, "start").sort(function (a, b) { return b.start - a.start; });
     $("away").innerHTML = aw.map(function (a) {
       return "<tr><td>" + new Date(a.start * 1000).toLocaleDateString([], { day: "numeric", month: "short" }) + " " + hm(a.start) + "</td><td>" +
-        (a.place ? esc(a.place) : "<span class='muted'>Unknown</span>") + " <span class='pill " + a.kind + "'>" + (a.kind === "dc" ? "Fast charger" : "Public AC") +
+        (a.place ? esc(a.place) : "<span class='muted'>Unknown</span>") + " <span class='pill " + (a.supercharger ? "sc" : a.kind) + "'>" + (a.supercharger ? "Supercharger" : a.kind === "dc" ? "Fast charger" : "Public AC") +
         "</span></td><td>" + a.kwh.toFixed(1) + "</td><td class='hide-sm'>" + Math.round((a.end - a.start) / 60) + "</td><td>$" + a.cost.toFixed(2) + "</td></tr>";
     }).join("") || "<tr><td colspan='5' class='muted' style='text-align:center;padding:18px'>None in this period.</td></tr>";
     if (!selected && list.length) showTrip(list[0].id);
