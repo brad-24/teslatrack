@@ -955,6 +955,31 @@ class Tracker(object):
             out[self.today_key] = dict(self.today)
         return out
 
+    def get_odometer(self):
+        """Odometer at the end of each day (archive plus recent days) and now, for distance over any period."""
+        out = {}
+        if self.store:
+            try:
+                with open(os.path.join(self.store.archive_dir, "daily.csv")) as f:
+                    f.readline()
+                    for line in f:
+                        c = line.split(",")
+                        if len(c) > 1 and c[1]:
+                            try:
+                                out[c[0]] = float(c[1])
+                            except ValueError:
+                                pass
+            except IOError:
+                pass
+        with self.lock:
+            for k, t in self.days.items():
+                if t.get("odo_end") is not None:
+                    out[k] = t["odo_end"]
+            now_odo = self.vehicle.get("odo_km")
+            if self.today.get("odo_end") is not None:
+                out[self.today_key] = self.today["odo_end"]
+        return {"now": now_odo, "days": {k: round(v, 1) for k, v in out.items()}}
+
     def get_trips(self, days):
         cut = self.clock() - days * 86400 if days > 0 else 0
         with self.lock:
@@ -1077,6 +1102,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(t.get_health())
         elif u.path == "/api/days":
             self._json(t.get_days())
+        elif u.path == "/api/odometer":
+            self._json(t.get_odometer())
         elif u.path == "/api/trips":
             self._json(t.get_trips(qi("days", 0)))
         elif u.path.startswith("/api/trip/"):
