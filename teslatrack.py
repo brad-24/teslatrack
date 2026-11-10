@@ -978,7 +978,9 @@ class Tracker(object):
             now_odo = self.vehicle.get("odo_km")
             if self.today.get("odo_end") is not None:
                 out[self.today_key] = self.today["odo_end"]
-            trips = [[t["start"], t["km"], t["kwh"]] for t in self.trips if t.get("kwh") and t.get("km")]
+            trips = [{"start": t["start"], "end": t.get("end"), "km": t.get("km"), "kwh": t.get("kwh"),
+                      "minutes": t.get("minutes"), "from": t.get("start_place"), "to": t.get("end_place"),
+                      "work": bool(t.get("work"))} for t in self.trips if t.get("km")]
         return {"now": now_odo, "days": {k: round(v, 1) for k, v in out.items()}, "trips": trips}
 
     def get_trips(self, days):
