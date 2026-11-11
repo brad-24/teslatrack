@@ -518,8 +518,6 @@ class Tracker(object):
                 if upd.get(key) is not None:
                     self._battery_in(now, key, upd[key], v.get(key), upd.get("fast_charger", v.get("fast_charger")),
                                      upd.get("home", v.get("home")))
-            if "sentry" in upd:
-                self._sentry_change(v.get("sentry"), upd["sentry"], upd.get("home", v.get("home")))
             if self.away is not None and "supercharger" in str(upd.get("fast_type", v.get("fast_type")) or "").lower():
                 self.away["supercharger"] = True
             self._trip_update(now, upd, v, loc)
@@ -654,15 +652,6 @@ class Tracker(object):
         if gear == "P":
             return False
         return (upd.get("speed_kmh") or 0) > 3
-
-    def _sentry_change(self, old, new, home):
-        """Log Sentry being switched on or off (not its moves between armed and aware, which happen
-        whenever someone walks past)."""
-        on = lambda x: x is not None and str(x).lower() not in ("off", "")
-        if old is None or on(old) == on(new):
-            return
-        where = " at home" if home else " away from home" if home is False else ""
-        self.event("Sentry mode switched %s%s" % ("on" if on(new) else "off", where))
 
     @staticmethod
     def _start_odo(upd, v):
