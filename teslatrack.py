@@ -653,6 +653,16 @@ class Tracker(object):
             return False
         return (upd.get("speed_kmh") or 0) > 3
 
+    @staticmethod
+    def _start_odo(upd, v):
+        """Odometer at the start of a drive. A sleeping car only starts streaming once it's awake, by which
+        time it may have rolled a few hundred metres, so the reading from when it last parked is the true
+        start. If that is more than 3 km behind, something was missed (the Pi was off), so use the new one."""
+        new, last = upd.get("odo_km"), v.get("odo_km")
+        if last is not None and (new is None or 0 <= new - last <= 3):
+            return last
+        return new if new is not None else last
+
     def _trip_update(self, now, upd, v, loc):
         tr = self.trip
         driving = self._driving(upd, v) if ("gear" in upd or "speed_kmh" in upd) else None
@@ -660,7 +670,7 @@ class Tracker(object):
             if driving:
                 self.trip = tr = {
                     "id": int(now), "start": now, "park_since": None,
-                    "start_odo": upd.get("odo_km", v.get("odo_km")), "start_soc": v.get("soc"),
+                    "start_odo": self._start_odo(upd, v), "start_soc": v.get("soc"),
                     "start_e": v.get("energy_kwh"), "start_loc": list(self.last_loc[:2]) if self.last_loc else None,
                     "top": 0, "temps": [], "points": [],
                 }
