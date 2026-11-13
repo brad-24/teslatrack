@@ -966,8 +966,21 @@ class Tracker(object):
                 "away": dict(self.away) if self.away else None,
                 "today": days[self.today_key],
                 "solarcharge": {"rain12": self.solar.get("rain12")},
+                "braking": self._braking(7),
                 "events": list(self.events)[:25],
             }
+
+    def _braking(self, days):
+        """Brake presses, time on the brake and regen over the trips of the last few days that have brake data."""
+        cut = self.clock() - days * 86400
+        rows = [t for t in self.trips if t.get("start", 0) >= cut and t.get("brakes") is not None]
+        if not rows:
+            return None
+        km = sum(t["km"] for t in rows)
+        regen = [t["regen_kwh"] for t in rows if t.get("regen_kwh") is not None]
+        return {"days": days, "trips": len(rows), "km": round(km, 1), "presses": sum(t["brakes"] for t in rows),
+                "brake_s": sum(t.get("brake_s") or 0 for t in rows),
+                "regen_kwh": round(sum(regen), 2) if regen else None}
 
     def vehicle_for_solarcharge(self):
         with self.lock:

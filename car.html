@@ -370,6 +370,8 @@ footer { margin-top: 18px; font-size: 12px; color: var(--text-3); text-align: ce
 .hstats { margin: 0 0 10px; }
 
 #carstats { margin-top: 10px; }
+@media (min-width: 761px) { #carstats { grid-template-columns: repeat(5, 1fr); } }
+@media (max-width: 760px) { #carstats .cs:last-child { grid-column: 1 / -1; } }
 #carstats[hidden] { display: none; }
 .subhead { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
 .subh { font-size: 12px; font-weight: 600; color: var(--text-3); margin: 0; letter-spacing: .06em; text-transform: uppercase; }
@@ -403,6 +405,7 @@ nav a[hidden] { display: none !important; }
       <div class="cs"><div class="l">Range</div><div class="v" id="cs-range"></div></div>
       <div class="cs"><div class="l">Odometer</div><div class="v" id="cs-odo"></div></div>
       <div class="cs"><div class="l">Driven today</div><div class="v" id="cs-driven"></div></div>
+      <div class="cs"><div class="l">Braking, 7 days</div><div class="v" id="cs-brake"></div></div>
       <div class="cs"><div class="l">Tyres <span id="cs-tpt"></span></div><div class="v tyres" id="cs-tyres"></div></div>
     </div>
     <div class="chartnote" id="st-note">Fills in as the car reports. Locations and trips stay on this Pi.</div>
@@ -922,6 +925,15 @@ nav a[hidden] { display: none !important; }
     $("st-eff").innerHTML = wk === null && today === null ? dim("n/a") :
       (wk !== null ? wk + " <small>Wh/km, 7 days</small>" : "") + (today !== null ? "<div class='sub2'>today " + today + " Wh/km</div>" : "");
     var td = s.today || {}, tkm = td.odo_end !== undefined && td.odo_start !== undefined ? td.odo_end - td.odo_start : null;
+    // braking over the last week: presses per 10 km, with time on the brake and regen underneath
+    var bk = s.braking;
+    if (!bk || bk.km < 1) $("cs-brake").innerHTML = "<span class='muted'>n/a</span><div class='sub2'>needs BrakePedal in Teslemetry</div>";
+    else {
+      var bs = bk.brake_s, bt = bs < 60 ? bs + " s" : Math.round(bs / 60) + " min";
+      $("cs-brake").innerHTML = (bk.presses * 10 / bk.km).toFixed(1) + "<small>presses per 10 km</small>" +
+        "<div class='sub2'>" + bt + " on the brake" + (bk.regen_kwh !== null ? " &#183; " + bk.regen_kwh.toFixed(1) + " kWh regen" : "") + "</div>";
+      $("cs-brake").title = bk.presses + " presses over " + bk.trips + (bk.trips === 1 ? " trip, " : " trips, ") + bk.km.toFixed(0) + " km";
+    }
     $("st-trips").innerHTML = (td.trips || 0) + " <small>" + ((td.trips || 0) === 1 ? "trip" : "trips") + (tkm !== null ? ", " + tkm.toFixed(0) + " km" : "") + "</small>" +
       (s.trip ? "<div class='sub2'>Driving now" + (s.trip.km_so_far ? ", " + s.trip.km_so_far.toFixed(1) + " km so far" : "") + "</div>" : "");
     var upd = v.update_version && v.update_version !== v.version;
