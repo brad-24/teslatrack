@@ -182,11 +182,17 @@ def parse_fields(data):
     num("Odometer", "odo_km", 0, 2000000, MILE_KM, 1)
     num("DCChargingEnergyIn", "dc_in", 0, 500, digits=3)
     num("ACChargingEnergyIn", "ac_in", 0, 500, digits=3)
+    # regenerative braking: a lifetime total, so each trip takes the difference (kWh, not yet documented by Tesla)
+    num("LifetimeEnergyGainedRegen", "regen_kwh", 0, 10000000, digits=3)
     for key, name in (("TpmsPressureFl", "tp_fl"), ("TpmsPressureFr", "tp_fr"),
                       ("TpmsPressureRl", "tp_rl"), ("TpmsPressureRr", "tp_rr")):
         num(key, name, 0.5, 6, BAR_PSI, 1)
     if any(k in upd for k in ("tp_fl", "tp_fr", "tp_rl", "tp_rr")):
         upd["tp_t"] = time.time()
+    if "BrakePedal" in data:
+        v = _bool(data["BrakePedal"])
+        if v is not None:
+            upd["brake"] = v
     if "Locked" in data:
         v = _bool(data["Locked"])
         if v is not None:
@@ -673,7 +679,10 @@ class Tracker(object):
                     "start_odo": self._start_odo(upd, v), "start_soc": v.get("soc"),
                     "start_e": v.get("energy_kwh"), "start_loc": list(self.last_loc[:2]) if self.last_loc else None,
                     "top": 0, "temps": [], "points": [],
+                    "start_regen": v.get("regen_kwh"), "brakes": 0, "brake_s": 0.0, "brake_on": None, "brake_seen": False,
                 }
+                if upd.get("brake", v.get("brake")) is True and "brake" in upd:
+                    tr["brake_on"], tr["brakes"], tr["brake_seen"] = now, 1, True
                 if tr["start_loc"]:
                     tr["points"].append([round(tr["start_loc"][0], 5), round(tr["start_loc"][1], 5), int(now)])
             return
@@ -681,8 +690,14 @@ class Tracker(object):
             tr["park_since"] = None
         elif driving is False and not tr.get("park_since"):
             tr["park_since"] = now
+            if tr.get("brake_on"):   # parked with a foot on the brake: count the time up to parking
+                tr["brake_s"] = tr.get("brake_s", 0.0) + min(now - tr["brake_on"], 600)
+                tr["brake_on"] = None
         if upd.get("speed_kmh"):
             tr["top"] = max(tr["top"], upd["speed_kmh"])
+        self._brake_update(now, tr, upd, v)
+        if tr.get("start_regen") is None and upd.get("regen_kwh") is not None:
+            tr["start_regen"] = upd["regen_kwh"]
         if upd.get("outside") is not None:
             tr["temps"].append(upd["outside"])
             tr["temps"] = tr["temps"][-200:]
@@ -699,11 +714,30 @@ class Tracker(object):
         if tr.get("start_soc") is None and upd.get("soc") is not None:
             tr["start_soc"] = upd["soc"]
 
+    @staticmethod
+    def _brake_update(now, tr, upd, v):
+        """Counts brake presses and time on the brake while driving (the car sends BrakePedal as it changes,
+        at most once a second). Presses while parked, like holding the brake to select a gear, don't count."""
+        if "brake" not in upd:
+            return
+        tr["brake_seen"] = True
+        on, was = upd["brake"], v.get("brake")
+        if on and was is not True:
+            if not tr.get("park_since"):
+                tr["brakes"] = tr.get("brakes", 0) + 1
+            tr["brake_on"] = now
+        elif not on and tr.get("brake_on"):
+            if not tr.get("park_since"):
+                tr["brake_s"] = tr.get("brake_s", 0.0) + min(now - tr["brake_on"], 600)
+            tr["brake_on"] = None
+
     def _end_trip(self, now):
         tr, self.trip = self.trip, None
         if not tr:
             return
         v = self.vehicle
+        if tr.get("brake_on") and not tr.get("park_since"):
+            tr["brake_s"] = tr.get("brake_s", 0.0) + min(now - tr["brake_on"], 600)
         end = tr.get("park_since") or now
         pts = tr.get("points") or []
         route_km = sum(dist_m(pts[i][:2], pts[i + 1][:2]) for i in range(len(pts) - 1)) / 1000.0
@@ -734,6 +768,14 @@ class Tracker(object):
             "end_loc": [round(x, 5) for x in end_loc] if end_loc else None,
             "start_place": None, "end_place": None, "points": len(pts),
         }
+        if tr.get("brake_seen"):
+            rec["brakes"] = tr.get("brakes", 0)
+            rec["brake_s"] = int(round(tr.get("brake_s", 0)))
+        if tr.get("start_regen") is not None and v.get("regen_kwh") is not None:
+            regen = v["regen_kwh"] - tr["start_regen"]
+            # skip anything implausible, in case the car reports this total in other units
+            if 0 <= regen <= max(2.0, km * 0.3):
+                rec["regen_kwh"] = round(regen, 2)
         for which, loc in (("start", start_loc), ("end", end_loc)):
             if loc and self.home_loc and dist_m(self.home_loc, loc) <= self.s.home_radius:
                 rec[which + "_place"] = "Home"
@@ -1229,6 +1271,8 @@ def simulate(tracker, clock):
                        "avg_kmh": int(km / ((tt - start) / 3600.0)), "top_kmh": random.randint(60, 100),
                        "soc_start": 80, "soc_end": 78, "outside": round(random.uniform(16, 28), 1),
                        "start_loc": list(leg[0]), "end_loc": list(leg[-1]),
+                       "brakes": random.randint(4, 30), "brake_s": random.randint(20, 200),
+                       "regen_kwh": round(kwh * random.uniform(0.1, 0.25), 2),
                        "start_place": "Home" if leg[0] == home else names[ri],
                        "end_place": "Home" if leg[-1] == home else names[ri], "points": len(pts)}
                 tracker.trips.append(rec)

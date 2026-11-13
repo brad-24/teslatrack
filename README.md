@@ -67,6 +67,7 @@ In the Teslemetry console, under Telemetry Configuration, turn on the fields for
 | For | Fields |
 |---|---|
 | Trips | Gear, Location, Odometer, VehicleSpeed, EnergyRemaining, BatteryLevel, OutsideTemp |
+| Braking (optional) | BrakePedal (presses and time on the brake per trip), LifetimeEnergyGainedRegen (regen kWh per trip). BrakePedal changes often while driving, so it uses more Teslemetry credits |
 | Battery | BatteryLevel, ChargeLimitSoc, TimeToFullCharge, EnergyRemaining, BrickVoltageMax, BrickVoltageMin |
 | Temps | InsideTemp, OutsideTemp |
 | Tyres | TpmsPressureFl, TpmsPressureFr, TpmsPressureRl, TpmsPressureRr |
