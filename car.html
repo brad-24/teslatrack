@@ -462,6 +462,24 @@ nav a[hidden] { display: none !important; }
 
   <section class="card" style="margin-bottom:14px">
     <div class="charthead">
+      <h2>Distance</h2>
+      <div class="legendrow">
+        <span><span class="swatch" style="background:var(--s-car)"></span>Driven <b id="dl-total"></b></span>
+        <span>Average <b id="dl-avg"></b></span>
+      </div>
+      <div class="range" id="drange">
+        <button type="button" data-r="7">7 d</button>
+        <button type="button" data-r="30" class="on">30 d</button>
+        <button type="button" data-r="90">3 mo</button>
+        <button type="button" data-r="365">Year</button>
+      </div>
+    </div>
+    <div class="chart short" id="dchart"><div class="tip" id="dtip"></div></div>
+    <div class="chartnote">From the odometer, so it counts every km, not just recorded trips. 7 and 30 days show each day, 3 months each week (Sunday to Saturday) and a year each month.</div>
+  </section>
+
+  <section class="card" style="margin-bottom:14px">
+    <div class="charthead">
       <h2>Temps</h2>
       <div class="legendrow">
         <span><span class="swatch" style="background:var(--s-cabin)"></span>Cabin <b id="tl-cabin"></b></span>
@@ -759,6 +777,137 @@ nav a[hidden] { display: none !important; }
     hit.addEventListener("touchmove", move, { passive: true });
     hit.addEventListener("mouseleave", leave);
     hit.addEventListener("touchend", leave);
+  }
+
+  // ---- distance: km per day (7 or 30 days), per week (3 months) or per month (a year), from the odometer,
+  // drawn like the battery chart
+  var odo = null, distRange = "30";
+  function ymd(d) { return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+  function kmPerDay() {
+    // each day's km is its closing odometer less the previous recorded day's; today runs to the odometer now
+    var keys = Object.keys(odo.days).sort(), out = {};
+    for (var i = 1; i < keys.length; i++) {
+      var km = odo.days[keys[i]] - odo.days[keys[i - 1]];
+      if (km >= 0 && km < 2000) out[keys[i]] = km;
+    }
+    var today = ymd(new Date()), last = keys.filter(function (k) { return k < today; }).pop();
+    if (odo.now !== null && odo.now !== undefined && last !== undefined) {
+      var t = odo.now - odo.days[last];
+      if (t >= 0 && t < 2000) out[today] = t;
+    }
+    return out;
+  }
+  function distBuckets() {
+    var per = kmPerDay(), now = new Date(), b = [];
+    now.setHours(12, 0, 0, 0);
+    if (distRange === "7" || distRange === "30") {
+      var n = +distRange;
+      for (var i = n - 1; i >= 0; i--) {
+        var d = new Date(now); d.setDate(d.getDate() - i);
+        b.push({ km: per[ymd(d)] || 0, label: n === 7 ? d.toLocaleDateString([], { weekday: "short" }) : d.toLocaleDateString([], { day: "numeric", month: "short" }),
+                 tip: d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }), axis: n === 7 || i % 5 === 0 });
+      }
+    } else if (distRange === "90") {
+      // weeks run Sunday to Saturday
+      var start = new Date(now); start.setDate(start.getDate() - start.getDay() - 12 * 7);
+      for (var w = 0; w < 13; w++) {
+        var ws = new Date(start); ws.setDate(ws.getDate() + w * 7);
+        var km = 0;
+        for (var j = 0; j < 7; j++) { var dd = new Date(ws); dd.setDate(dd.getDate() + j); km += per[ymd(dd)] || 0; }
+        b.push({ km: km, label: ws.toLocaleDateString([], { day: "numeric", month: "short" }),
+                 tip: "Week of " + ws.toLocaleDateString([], { day: "numeric", month: "short" }), axis: w % 2 === 0 });
+      }
+    } else {
+      for (var m = 11; m >= 0; m--) {
+        var ms = new Date(now.getFullYear(), now.getMonth() - m, 1), pre = ymd(ms).slice(0, 7), km2 = 0;
+        Object.keys(per).forEach(function (k) { if (k.slice(0, 7) === pre) km2 += per[k]; });
+        b.push({ km: km2, label: ms.toLocaleDateString([], { month: "short" }),
+                 tip: ms.toLocaleDateString([], { month: "long", year: "numeric" }), axis: true });
+      }
+    }
+    // leave out the periods before the car's first recorded day, so the line starts when driving does
+    var firstDay = Object.keys(odo.days).sort()[0], first = 0;
+    while (first < b.length - 1 && !b[first].km) first++;
+    return { all: b, first: firstDay ? first : b.length };
+  }
+  function drawDist() {
+    var box = $("dchart"), tip = $("dtip");
+    if (!box.clientWidth || !odo) return;
+    var old = box.querySelector("svg"); if (old) old.remove();
+    var oldEmpty = box.querySelector(".empty"); if (oldEmpty) oldEmpty.remove();
+    var r = distBuckets(), b = r.all, shown = b.slice(r.first);
+    var total = shown.reduce(function (a, x) { return a + x.km; }, 0), max = Math.max.apply(null, b.map(function (x) { return x.km; }));
+    var unit = distRange === "90" ? "week" : distRange === "365" ? "month" : "day";
+    $("dl-total").textContent = Math.round(total).toLocaleString() + " km";
+    $("dl-avg").textContent = shown.length && total ? Math.round(total / shown.length).toLocaleString() + " km a " + unit : "";
+    if (!max) {
+      var e = document.createElement("div"); e.className = "empty"; e.textContent = "No distance recorded in this period yet";
+      box.appendChild(e); return;
+    }
+    var W = box.clientWidth, H = box.clientHeight, ml = 46, mr = 14, mt = 10, mb = 26, iw = W - ml - mr, ih = H - mt - mb;
+    var nice = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000];
+    var step = nice.filter(function (s) { return max / s <= 4; })[0] || 10000, ymax = step * 4;
+    var x = function (i) { return ml + (b.length === 1 ? iw / 2 : i / (b.length - 1) * iw); };
+    var y = function (v) { return mt + ih - v / ymax * ih; };
+    var html = "<g class='axis'>";
+    for (var g = 0; g <= 4; g++) {
+      var yy = mt + ih - ih * g / 4;
+      html += "<line class='gridline' x1='" + ml + "' x2='" + (W - mr) + "' y1='" + yy + "' y2='" + yy + "'/>" +
+        "<text x='" + (ml - 8) + "' y='" + (yy + 4) + "' text-anchor='end'>" + (step * g).toLocaleString() + "</text>";
+    }
+    var every = iw < 420 && distRange !== "7" ? 2 : 1, ac = 0;
+    b.forEach(function (p, i) {
+      if (!p.axis || ac++ % every) return;
+      var px = x(i), anchor = px < ml + 14 ? "start" : px > W - mr - 14 ? "end" : "middle";
+      html += "<text x='" + px + "' y='" + (H - 6) + "' text-anchor='" + anchor + "'>" + p.label + "</text>";
+    });
+    html += "</g>";
+    var pts = shown.map(function (p, k) { var i = r.first + k; return x(i).toFixed(1) + "," + y(p.km).toFixed(1); });
+    if (pts.length) {
+      html += "<path d='M" + x(r.first).toFixed(1) + "," + y(0) + "L" + pts.join("L") + "L" + x(b.length - 1).toFixed(1) + "," + y(0) + "Z' style='fill:var(--s-car);opacity:.12;stroke:none'/>";
+      html += "<path class='line' d='M" + pts.join("L") + "' style='stroke:var(--s-car)'/>";
+      if (pts.length <= 31) shown.forEach(function (p, k) {
+        html += "<circle r='2.5' cx='" + x(r.first + k).toFixed(1) + "' cy='" + y(p.km).toFixed(1) + "' style='fill:var(--s-car)'/>";
+      });
+    }
+    html += "<line class='cross' y1='" + mt + "' y2='" + (mt + ih) + "' style='display:none'/>" +
+      "<circle class='dot' r='4' style='fill:var(--s-car);display:none'/>" +
+      "<rect class='hit' x='" + ml + "' y='" + mt + "' width='" + iw + "' height='" + ih + "' fill='transparent'/>";
+    var NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "Distance driven per " + unit);
+    svg.innerHTML = html;
+    box.insertBefore(svg, tip);
+    var hit = svg.querySelector(".hit"), cross = svg.querySelector(".cross"), dot = svg.querySelector(".dot");
+    function move(ev) {
+      var rc = svg.getBoundingClientRect(), cx = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rc.left;
+      var i = Math.round((cx - ml) / iw * (b.length - 1));
+      i = Math.max(r.first, Math.min(b.length - 1, i));
+      var p = b[i], px = x(i);
+      cross.setAttribute("x1", px); cross.setAttribute("x2", px); cross.style.display = "";
+      dot.setAttribute("cx", px); dot.setAttribute("cy", y(p.km)); dot.style.display = "";
+      tip.innerHTML = "<div class='t'>" + p.tip + "</div><div class='r'><span class='swatch' style='background:var(--s-car)'></span>Driven<b>" +
+        (Math.round(p.km * 10) / 10).toLocaleString() + " km</b></div>";
+      tip.style.display = "block";
+      var tx = px + 14; if (tx + tip.offsetWidth > W) tx = px - tip.offsetWidth - 14;
+      tip.style.left = tx + "px"; tip.style.top = (mt + 4) + "px";
+    }
+    function leave() { tip.style.display = "none"; cross.style.display = "none"; dot.style.display = "none"; }
+    hit.addEventListener("mousemove", move);
+    hit.addEventListener("touchstart", move, { passive: true });
+    hit.addEventListener("touchmove", move, { passive: true });
+    hit.addEventListener("mouseleave", leave);
+    hit.addEventListener("touchend", leave);
+  }
+  $("drange").addEventListener("click", function (e) {
+    var bt = e.target.closest("button"); if (!bt) return;
+    distRange = bt.getAttribute("data-r");
+    $("drange").querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", x === bt); });
+    drawDist();
+  });
+  function pollOdo() {
+    fetch("/api/odometer", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (o) { odo = o; drawDist(); }).catch(function () {});
   }
 
   // ---- tyres: every reading for 3 or 7 days, one average per day for 30 or 90 days; lines join across gaps
@@ -1129,8 +1278,9 @@ nav a[hidden] { display: none !important; }
       if (state) { renderCarStats(state.vehicle); renderCarStatus(state); }
     }).catch(function () {});
   }
-  window.addEventListener("resize", function () { clearTimeout(window._rz); window._rz = setTimeout(function () { drawTele(TEMPS); drawTele(CAR); drawTyres(); drawHealth(); }, 150); });
-  poll(); pollDays(); pollCar(); pollTyres(); pollHealth();
+  window.addEventListener("resize", function () { clearTimeout(window._rz); window._rz = setTimeout(function () { drawTele(TEMPS); drawTele(CAR); drawTyres(); drawHealth(); drawDist(); }, 150); });
+  poll(); pollDays(); pollCar(); pollTyres(); pollHealth(); pollOdo();
+  setInterval(pollOdo, 300000);
   setInterval(poll, 10000); setInterval(tickClock, 1000); setInterval(pollDays, 120000);
   setInterval(pollCar, 60000); setInterval(pollTyres, 600000); setInterval(pollHealth, 600000);
 })();
