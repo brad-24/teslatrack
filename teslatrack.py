@@ -68,6 +68,10 @@ DEFAULTS = {
         # look up suburb names for where trips start and end (OpenStreetMap Nominatim, free)
         "place_names": "true",
     },
+    "tyres": {
+        # rotate the tyres every this many km (Tesla's recommendation for the Model Y)
+        "rotate_km": "10000",
+    },
     "tariff": {
         # rough prices for charging away from home, cents per kWh
         "away_dc_c_per_kwh": "60",
@@ -111,6 +115,7 @@ class Settings(object):
         self.park_s = gf("trips", "park_minutes") * 60
         self.min_km = gf("trips", "min_km")
         self.place_names = gb("trips", "place_names")
+        self.rotate_km = gf("tyres", "rotate_km")
         self.drivers = [d.strip() for d in g("trips", "drivers").split(",") if d.strip()][:8]
         self.away_dc_price = gf("tariff", "away_dc_c_per_kwh") / 100.0
         self.away_ac_price = gf("tariff", "away_ac_c_per_kwh") / 100.0
@@ -480,6 +485,7 @@ class Tracker(object):
         self.trip = st.get("trip")                            # the trip under way, if any
         self.away = st.get("away")                            # charging away from home, under way
         self.archived_through = st.get("archived_through")
+        self.rotation = st.get("rotation")                    # odometer and time of the last tyre rotation
         self.place_cache = st.get("places") or {}
         self.places = Places(s, self.place_cache)
         self.trips = storage.load_trips() if storage else []
@@ -948,7 +954,7 @@ class Tracker(object):
             st = {"vehicle": self.vehicle, "car_history": list(self.car_history), "tyre_days": self.tyre_days,
                   "health": self.health, "home_loc": self.home_loc, "night_spots": self.night_spots,
                   "days": days, "trip": self.trip, "away": self.away, "archived_through": self.archived_through,
-                  "places": self.place_cache, "saved": time.time()}
+                  "places": self.place_cache, "rotation": self.rotation, "saved": time.time()}
         self.store.save_state(st)
 
     # ---- what the pages and SolarCharge ask for
@@ -970,8 +976,28 @@ class Tracker(object):
                 "today": days[self.today_key],
                 "solarcharge": {"rain12": self.solar.get("rain12")},
                 "braking": self._braking(7),
+                "tyres": self._rotation_status(v),
                 "events": list(self.events)[:25],
             }
+
+    def _rotation_status(self, v):
+        """Km until the next tyre rotation. With none recorded, count from new (odometer 0)."""
+        every = self.s.rotate_km
+        last = self.rotation or {"odo": 0.0, "t": None}
+        odo = v.get("odo_km")
+        return {"every": every, "last_odo": last["odo"], "last_t": last["t"], "recorded": bool(self.rotation),
+                "due_in": round(last["odo"] + every - odo, 0) if odo is not None and every > 0 else None}
+
+    def mark_rotated(self):
+        """You've had the tyres rotated: start counting again from the odometer now."""
+        with self.lock:
+            odo = self.vehicle.get("odo_km")
+            if odo is None:
+                return False
+            self.rotation = {"odo": round(odo, 1), "t": int(self.clock())}
+        self.event("Tyres rotated at %s km" % format(int(odo), ","))
+        self.save()
+        return True
 
     def _braking(self, days):
         """Brake presses, time on the brake and regen over the trips of the last few days that have brake data."""
@@ -1217,6 +1243,12 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         u = urlparse(self.path)
         parts = u.path.strip("/").split("/")
+        if u.path == "/api/tyres/rotated":
+            if self.tracker.mark_rotated():
+                self._json({"ok": True})
+            else:
+                self._json({"ok": False, "error": "The odometer hasn't been reported yet"}, 409)
+            return
         if len(parts) == 4 and parts[:2] == ["api", "trip"] and parts[3] in ("work", "driver"):
             try:
                 n = int(self.headers.get("Content-Length") or 0)

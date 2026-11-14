@@ -373,6 +373,12 @@ footer { margin-top: 18px; font-size: 12px; color: var(--text-3); text-align: ce
 @media (min-width: 761px) { #carstats { grid-template-columns: repeat(5, 1fr); } }
 @media (max-width: 760px) { #carstats .cs:last-child { grid-column: 1 / -1; } }
 #carstats[hidden] { display: none; }
+.rotrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px;
+  padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); }
+.rotrow b { color: var(--text); }
+.rotrow .warn { color: var(--warn); }
+.dl { font: inherit; font-size: 13px; background: none; border: 1px solid var(--border); color: var(--text-2); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+.dl.confirm { border-color: var(--accent); color: var(--text); }
 .subhead { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
 .subh { font-size: 12px; font-weight: 600; color: var(--text-3); margin: 0; letter-spacing: .06em; text-transform: uppercase; }
 nav a[hidden] { display: none !important; }
@@ -491,6 +497,10 @@ nav a[hidden] { display: none !important; }
     </div>
     <div class="chart short" id="ychart"><div class="tip" id="ytip"></div></div>
     <div class="chartnote" id="ynote"></div>
+    <div class="rotrow">
+      <span id="rotinfo"></span>
+      <button class="dl" id="rotbtn" type="button">Tyres rotated today</button>
+    </div>
   </section>
 
   <section class="card" style="margin-bottom:14px">
@@ -906,6 +916,31 @@ nav a[hidden] { display: none !important; }
     });
     return km >= 5 ? Math.round(used * 1000 / km) : null;
   }
+  // ---- tyre rotation: km to go, and a button to restart the count (tap twice to confirm)
+  var rotArm = null;
+  function renderRotation(ty) {
+    if (!ty || !ty.every) { $("rotinfo").textContent = ""; return; }
+    var since = ty.recorded ? "Last rotated " + new Date(ty.last_t * 1000).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }) +
+      " at " + Math.round(ty.last_odo).toLocaleString() + " km" : "Counting from new";
+    var due = ty.due_in === null ? "" : ty.due_in <= 0 ? "<span class='warn'>Rotation <b>due now</b></span>" :
+      "Next rotation in <b>" + Math.round(ty.due_in).toLocaleString() + " km</b>";
+    $("rotinfo").innerHTML = due + (due ? " &#183; " : "") + since + " &#183; every " + Math.round(ty.every).toLocaleString() + " km";
+  }
+  $("rotbtn").addEventListener("click", function () {
+    var b = $("rotbtn");
+    if (!rotArm) {
+      b.textContent = "Tap again to confirm"; b.classList.add("confirm");
+      rotArm = setTimeout(function () { rotArm = null; b.textContent = "Tyres rotated today"; b.classList.remove("confirm"); }, 4000);
+      return;
+    }
+    clearTimeout(rotArm); rotArm = null; b.disabled = true; b.textContent = "Saving\u2026";
+    fetch("/api/tyres/rotated", { method: "POST" }).then(function (r) { return r.json(); }).then(function (j) {
+      b.textContent = j.ok ? "Saved" : (j.error || "Couldn't save");
+    }).catch(function () { b.textContent = "Couldn't reach the Pi"; }).then(function () {
+      poll();
+      setTimeout(function () { b.disabled = false; b.textContent = "Tyres rotated today"; b.classList.remove("confirm"); }, 2500);
+    });
+  });
   function renderCarStatus(s) {
     var v = s.vehicle || {}, has = function (k) { return v[k] !== undefined && v[k] !== null; };
     var dim = function (t) { return "<span class='dim'>" + t + "</span>"; };
@@ -945,6 +980,10 @@ nav a[hidden] { display: none !important; }
     else if (wins.length && home && (hr >= 21 || hr < 6)) notes.push(["warn", "A window is open overnight (" + wins.join(", ") + ")"]);
     if (has("doors_open") && v.doors_open.length && home && (hr >= 21 || hr < 6)) notes.push(["warn", "A door or boot is open overnight"]);
     if (v.sentry === "Panic") notes.push(["warn", "Sentry Mode alarm triggered"]);
+    var ty = s.tyres;
+    if (ty && ty.due_in !== null && ty.due_in <= 0) notes.push(["warn", "Tyre rotation is due (" + Math.round(-ty.due_in).toLocaleString() + " km overdue). Once done, mark it on the Tyres card."]);
+    else if (ty && ty.due_in !== null && ty.due_in <= 500) notes.push(["info", "Tyre rotation due in about " + Math.round(ty.due_in) + " km"]);
+    renderRotation(ty);
     if (upd) notes.push(["info", "Software update " + v.update_version + " is ready. It installs best while plugged in, from the Tesla app or the car's screen."]);
     var html = notes.map(function (n) { return "<div class='notice" + (n[0] === "info" ? " info" : "") + "'>" + n[1] + "</div>"; }).join("");
     $("car-notices").innerHTML = html;
