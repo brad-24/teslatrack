@@ -413,7 +413,8 @@ select.drvsel { font: inherit; font-size: 13px; padding: 3px 6px; border-radius:
 .drv { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; }
 .drv .dn { font-size: 16px; font-weight: 650; display: flex; align-items: center; gap: 8px; }
 .drv .top { font-size: 11px; font-weight: 600; color: var(--accent-ink); background: var(--accent); padding: 2px 8px; border-radius: 999px; }
-.drv .dscore { font-size: 15px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.drv .dscore { font-size: 17px; margin-top: 4px; }
+.drv .dvs { font-size: 13px; font-weight: 600; margin-top: 2px; }
 .drv .stars { color: #f5b31c; letter-spacing: 1px; }
 .drv .dstats { display: grid; gap: 2px; margin-top: 8px; font-size: 13px; color: var(--text-2); }
 .drv .dstats b { color: var(--text); font-weight: 650; }
@@ -468,8 +469,9 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
   <section class="card" id="drivercard" style="margin-bottom:14px" hidden>
     <h2>Drivers</h2>
     <div class="drivers" id="drivers"></div>
-    <div class="chartnote">The efficiency score compares each driver's Wh/km with what the household typically uses on trips at similar speeds,
-      so town and highway driving are compared fairly. 100 is average and higher is better. A driver needs 50 km of trips to be rated. Each trip starts with the first driver; change it in the Trips table.</div>
+    <div class="chartnote">Stars rate how efficiently each driver drives. Each trip is compared with the energy the household usually uses
+      on trips at similar speeds, so school runs and highway trips are judged fairly. 3 stars is average (within 3%), 4 stars uses 3 to 10% less
+      energy, 5 stars more than 10% less. 2 and 1 stars use 3 to 10% and over 10% more. A driver needs 50 km of trips to be rated. Each trip starts with the first driver; change it in the Trips table.</div>
   </section>
 
   <section class="card" style="margin-bottom:14px">
@@ -663,6 +665,12 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
   // a trip's speed band, so town trips are compared with town trips and highway with highway
   function band(t) { var v = t.avg_kmh || 0; return v < 40 ? 0 : v < 70 ? 1 : 2; }
   function median(a) { a = a.slice().sort(function (x, y) { return x - y; }); var m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; }
+  // the score as words: how much less (or more) energy than the household usually uses for the same kind of trip
+  function vsAvg(score) {
+    var d = score - 100;
+    if (Math.abs(d) < 2) return "About average for the household";
+    return Math.abs(d) + "% " + (d > 0 ? "less" : "more") + " energy than usual";
+  }
   function stars(n) { var s = ""; for (var i = 1; i <= 5; i++) s += i <= n ? "★" : "☆"; return s; }
   function renderDrivers(list) {
     var card = $("drivercard");
@@ -691,12 +699,14 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
       return { name: name, trips: mine.length, km: km, whkm: ekm >= 1 ? Math.round(kwh * 1000 / ekm) : null, score: score,
                brake: bkm >= 5 ? presses * 10 / bkm : null, regen: rkwh > 0 ? regen / rkwh * 100 : null };
     });
-    var best = rows.filter(function (r) { return r.score !== null; }).sort(function (a, b) { return b.score - a.score; })[0];
+    // only crown a winner when at least two drivers have a score to compare
+    var rated = rows.filter(function (r) { return r.score !== null; }).sort(function (a, b) { return b.score - a.score; });
+    var best = rated.length >= 2 && rated[0].score > rated[1].score ? rated[0] : null;
     $("drivers").innerHTML = rows.map(function (r) {
       var st = r.score === null ? 0 : r.score >= 110 ? 5 : r.score >= 103 ? 4 : r.score >= 97 ? 3 : r.score >= 90 ? 2 : 1;
       return "<div class='drv'><div class='dn'>" + esc(r.name) + (best && best === r && rows.length > 1 && r.score !== null ? "<span class='top'>Most efficient</span>" : "") + "</div>" +
         (r.score === null ? "<div class='dscore muted'>" + (r.trips ? "Not enough driving yet" : "No trips") + "</div>"
-          : "<div class='dscore' title='Efficiency score: 100 is the household average for trips at similar speeds. Higher is better.'><span class='stars'>" + stars(st) + "</span> " + r.score + "</div>") +
+          : "<div class='dscore'><span class='stars'>" + stars(st) + "</span></div><div class='dvs'>" + vsAvg(r.score) + "</div>") +
         "<div class='dstats'><span><b>" + na(r.whkm) + "</b> Wh/km</span><span><b>" + Math.round(r.km) + "</b> km, " + r.trips + (r.trips === 1 ? " trip" : " trips") + "</span>" +
         (r.brake !== null ? "<span><b>" + r.brake.toFixed(1) + "</b> brake presses per 10 km</span>" : "") +
         (r.regen !== null ? "<span><b>" + Math.round(r.regen) + "%</b> recovered by regen</span>" : "") + "</div></div>";
