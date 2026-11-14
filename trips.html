@@ -407,6 +407,16 @@ button.work.on::before { transform: translateX(100%); background: var(--accent);
 button.work.on .p { color: var(--text-3); }
 button.work.on .w { color: var(--accent-ink); }
 button.work:disabled { opacity: .6; cursor: wait; }
+select.drvsel { font: inherit; font-size: 13px; padding: 3px 6px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); cursor: pointer; }
+.drivers { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.drv { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; }
+.drv .dn { font-size: 16px; font-weight: 650; display: flex; align-items: center; gap: 8px; }
+.drv .top { font-size: 11px; font-weight: 600; color: var(--accent-ink); background: var(--accent); padding: 2px 8px; border-radius: 999px; }
+.drv .dscore { font-size: 15px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.drv .stars { color: #f5b31c; letter-spacing: 1px; }
+.drv .dstats { display: grid; gap: 2px; margin-top: 8px; font-size: 13px; color: var(--text-2); }
+.drv .dstats b { color: var(--text); font-weight: 650; }
 @media (max-width: 600px) {
   button.work { font-size: 11px; }
   button.work span { padding: 3px 6px; }
@@ -455,6 +465,13 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     <div class="cs"><div class="l">Time driving</div><div class="v" id="k-time"></div></div>
   </section>
 
+  <section class="card" id="drivercard" style="margin-bottom:14px" hidden>
+    <h2>Drivers</h2>
+    <div class="drivers" id="drivers"></div>
+    <div class="chartnote">The efficiency score compares each driver's Wh/km with what the household typically uses on trips at similar speeds,
+      so town and highway driving are compared fairly. 100 is average and higher is better. Each trip starts with the first driver; change it in the Trips table.</div>
+  </section>
+
   <section class="card" style="margin-bottom:14px">
     <h2 id="maptitle">Trip</h2>
     <div class="tripmap" id="map"></div>
@@ -465,7 +482,7 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     <h2>Trips <span class="worksum" id="worksum"></span></h2>
     <div class="tablewrap">
       <table class="trips">
-        <thead><tr><th>Time</th><th>From and to</th><th>km</th><th>Type</th><th class="hide-sm">Minutes</th><th>Wh/km</th>
+        <thead><tr><th>Time</th><th>From and to</th><th>km</th><th>Type</th><th id="drvhead" hidden>Driver</th><th class="hide-sm">Minutes</th><th>Wh/km</th>
           <th class="hide-sm">kWh</th><th class="hide-sm">Battery</th><th class="hide-sm">Top km/h</th><th class="hide-sm">Outside</th><th class="hide-sm">Brakes</th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
@@ -531,6 +548,7 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
       var d = new Date(t.start * 1000);
       $("maptitle").textContent = d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) + ", " + hm(t.start) + " to " + hm(t.end);
       $("tripinfo").innerHTML = "<div class='route'>" + place(t.start_place, t.start_loc) + " to " + place(t.end_place, t.end_loc) + "</div>" +
+        (drivers.length ? "<span>Driver <b>" + esc(driverOf(t)) + "</b></span>" : "") +
         "<span><b>" + t.km.toFixed(1) + "</b> km</span><span><b>" + dur(t.minutes) + "</b></span>" +
         (t.wh_km ? "<span><b>" + t.wh_km + "</b> Wh/km</span>" : "") + (t.kwh ? "<span><b>" + t.kwh.toFixed(1) + "</b> kWh</span>" : "") +
         (t.soc_start !== null && t.soc_end !== null ? "<span>Battery <b>" + t.soc_start + "% to " + t.soc_end + "%</b></span>" : "") +
@@ -571,18 +589,19 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
         var dayTrips = list.filter(function (x) { return new Date(x.start * 1000).toDateString() === key; });
         var dkm = dayTrips.reduce(function (a, x) { return a + x.km; }, 0);
         var dwork = dayTrips.reduce(function (a, x) { return a + (x.work ? x.km : 0); }, 0);
-        html += "<tr class='day'><td colspan='11'>" + d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) +
+        html += "<tr class='day'><td colspan='" + (drivers.length ? 12 : 11) + "'>" + d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }) +
           "<span>" + dayTrips.length + (dayTrips.length === 1 ? " trip, " : " trips, ") + dkm.toFixed(0) + " km" + (dwork ? ", " + dwork.toFixed(0) + " km work" : "") + "</span></td></tr>";
       }
       html += "<tr class='trip" + (t.id === selected ? " sel" : "") + "' data-id='" + t.id + "'><td>" + hm(t.start) + "</td><td class='where'>" +
         place(t.start_place, t.start_loc) + " to " + place(t.end_place, t.end_loc) + "</td><td>" + t.km.toFixed(1) +
         "</td><td><button type='button' role='switch' class='work" + (t.work ? " on" : "") + "' aria-checked='" + !!t.work + "' aria-label='Work trip' title='Switch between personal and work'>" +
-        "<span class='p'>Personal</span><span class='w'>Work</span></button></td><td class='hide-sm'>" + t.minutes + "</td><td>" + na(t.wh_km) + "</td><td class='hide-sm'>" + na(t.kwh, function (v) { return v.toFixed(1); }) +
+        "<span class='p'>Personal</span><span class='w'>Work</span></button></td>" + driverSelect(t) + "<td class='hide-sm'>" + t.minutes + "</td><td>" + na(t.wh_km) + "</td><td class='hide-sm'>" + na(t.kwh, function (v) { return v.toFixed(1); }) +
         "</td><td class='hide-sm'>" + (t.soc_start !== null && t.soc_end !== null ? t.soc_start + "% to " + t.soc_end + "%" : na(null)) +
         "</td><td class='hide-sm'>" + na(t.top_kmh) + "</td><td class='hide-sm'>" + na(t.outside, function (v) { return Math.round(v) + "\u00b0"; }) +
         "</td><td class='hide-sm' title='Brake presses, time on the brake'>" + (t.brakes !== undefined ? t.brakes + " \u00b7 " + brakeTime(t.brake_s) : na(null)) + "</td></tr>";
     });
-    $("rows").innerHTML = html || "<tr><td colspan='11' class='muted' style='text-align:center;padding:24px'>No trips in this period yet. Each drive is added a few minutes after the car is parked.</td></tr>";
+    $("rows").innerHTML = html || "<tr><td colspan='" + (drivers.length ? 12 : 11) + "' class='muted' style='text-align:center;padding:24px'>No trips in this period yet. Each drive is added a few minutes after the car is parked.</td></tr>";
+    renderDrivers(list);
     var wk = list.filter(function (t) { return t.work; });
     $("worksum").textContent = wk.length ? "Work: " + wk.reduce(function (a, t) { return a + t.km; }, 0).toFixed(1) + " km, " +
       wk.length + (wk.length === 1 ? " trip" : " trips") : "";
@@ -618,7 +637,7 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     render();
   });
   $("csv").addEventListener("click", function () {
-    var cols = ["start", "end", "start_place", "end_place", "km", "minutes", "kwh", "wh_km", "avg_kmh", "top_kmh", "soc_start", "soc_end", "outside", "brakes", "brake_s", "regen_kwh", "type"];
+    var cols = ["start", "end", "start_place", "end_place", "km", "minutes", "kwh", "wh_km", "avg_kmh", "top_kmh", "soc_start", "soc_end", "outside", "brakes", "brake_s", "regen_kwh", "type", "driver"];
     var lines = [["date"].concat(cols).join(",")];
     inPeriod(trips, "start").sort(function (a, b) { return a.start - b.start; }).forEach(function (t) {
       var d = new Date(t.start * 1000);
@@ -627,6 +646,7 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
         var v = t[c];
         if (c === "start" || c === "end") v = hm(v);
         if (c === "type") v = t.work ? "work" : "personal";
+        if (c === "driver") v = drivers.length ? driverOf(t) : "";
         if (v === null || v === undefined) v = "";
         row.push(/[,"]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v);
       });
@@ -637,12 +657,79 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     a.download = "teslatrack-trips.csv";
     document.body.appendChild(a); a.click(); a.remove();
   });
+  // ---- drivers: who drove each trip, and how each driver compares
+  var drivers = [];
+  function driverOf(t) { return t.driver && drivers.indexOf(t.driver) >= 0 ? t.driver : drivers[0]; }
+  // a trip's speed band, so town trips are compared with town trips and highway with highway
+  function band(t) { var v = t.avg_kmh || 0; return v < 40 ? 0 : v < 70 ? 1 : 2; }
+  function median(a) { a = a.slice().sort(function (x, y) { return x - y; }); var m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; }
+  function stars(n) { var s = ""; for (var i = 1; i <= 5; i++) s += i <= n ? "★" : "☆"; return s; }
+  function renderDrivers(list) {
+    var card = $("drivercard");
+    if (!drivers.length) { card.hidden = true; return; }
+    card.hidden = false;
+    // what the household typically uses at each speed band in this period
+    var byBand = [[], [], []];
+    list.forEach(function (t) { if (t.wh_km && t.km >= 1) byBand[band(t)].push(t.wh_km); });
+    var expect = byBand.map(function (a) { return a.length ? median(a) : null; });
+    var rows = drivers.map(function (name) {
+      var mine = list.filter(function (t) { return driverOf(t) === name; });
+      var km = 0, kwh = 0, ekm = 0, idx = 0, ikm = 0, presses = 0, bkm = 0, regen = 0, rkwh = 0;
+      mine.forEach(function (t) {
+        km += t.km;
+        if (t.kwh && t.km >= 1) {
+          kwh += t.kwh; ekm += t.km;
+          var e = expect[band(t)];
+          if (e && t.wh_km) { idx += e / t.wh_km * t.km; ikm += t.km; }
+        }
+        if (t.brakes !== undefined) { presses += t.brakes; bkm += t.km; }
+        if (t.regen_kwh !== undefined && t.kwh) { regen += t.regen_kwh; rkwh += t.kwh; }
+      });
+      var score = ikm >= 20 ? Math.round(idx / ikm * 100) : null;
+      return { name: name, trips: mine.length, km: km, whkm: ekm >= 1 ? Math.round(kwh * 1000 / ekm) : null, score: score,
+               brake: bkm >= 5 ? presses * 10 / bkm : null, regen: rkwh > 0 ? regen / rkwh * 100 : null };
+    });
+    var best = rows.filter(function (r) { return r.score !== null; }).sort(function (a, b) { return b.score - a.score; })[0];
+    $("drivers").innerHTML = rows.map(function (r) {
+      var st = r.score === null ? 0 : r.score >= 110 ? 5 : r.score >= 103 ? 4 : r.score >= 97 ? 3 : r.score >= 90 ? 2 : 1;
+      return "<div class='drv'><div class='dn'>" + esc(r.name) + (best && best === r && rows.length > 1 && r.score !== null ? "<span class='top'>Most efficient</span>" : "") + "</div>" +
+        (r.score === null ? "<div class='dscore muted'>" + (r.trips ? "Not enough driving yet" : "No trips") + "</div>"
+          : "<div class='dscore' title='Efficiency score: 100 is the household average for trips at similar speeds. Higher is better.'><span class='stars'>" + stars(st) + "</span> " + r.score + "</div>") +
+        "<div class='dstats'><span><b>" + na(r.whkm) + "</b> Wh/km</span><span><b>" + Math.round(r.km) + "</b> km, " + r.trips + (r.trips === 1 ? " trip" : " trips") + "</span>" +
+        (r.brake !== null ? "<span><b>" + r.brake.toFixed(1) + "</b> brake presses per 10 km</span>" : "") +
+        (r.regen !== null ? "<span><b>" + Math.round(r.regen) + "%</b> recovered by regen</span>" : "") + "</div></div>";
+    }).join("");
+  }
+  function driverSelect(t) {
+    if (!drivers.length) return "";
+    var d = driverOf(t);
+    return "<td><select class='drvsel' aria-label='Driver'>" + drivers.map(function (n) {
+      return "<option" + (n === d ? " selected" : "") + ">" + esc(n) + "</option>"; }).join("") + "</select></td>";
+  }
+  $("rows").addEventListener("change", function (e) {
+    var sel = e.target.closest("select.drvsel");
+    if (!sel) return;
+    var id = parseInt(sel.closest("tr.trip").getAttribute("data-id"), 10), t = trips.filter(function (x) { return x.id === id; })[0];
+    if (!t) return;
+    sel.disabled = true;
+    fetch("/api/trip/" + id + "/driver", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ driver: sel.value }) })
+      .then(function (r) { if (r.ok) t.driver = sel.value; }).catch(function () {}).then(render);
+  });
+  $("rows").addEventListener("click", function (e) { if (e.target.closest("select.drvsel")) e.stopPropagation(); }, true);
+
   function poll() {
+    var a = document.activeElement;
+    if (a && a.classList && a.classList.contains("drvsel")) return;   // don't redraw while a driver is being picked
     Promise.all([
       fetch("/api/trips", { cache: "no-store" }).then(function (r) { return r.json(); }),
       fetch("/api/charging", { cache: "no-store" }).then(function (r) { return r.json(); })
     ]).then(function (res) { trips = res[0] || []; away = res[1] || []; render(); }).catch(function () {});
   }
+  fetch("/api/drivers", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
+    drivers = (d && d.drivers) || [];
+    $("drvhead").hidden = !drivers.length;
+    render();
+  }).catch(function () {});
   function pollStatus() {
     fetch("/api/status", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (s) {
       clockBase = [s.time, Date.now() / 1000];

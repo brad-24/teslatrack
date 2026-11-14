@@ -63,6 +63,8 @@ DEFAULTS = {
         "park_minutes": "3",
         # ignore moves shorter than this (shuffling the car in the driveway)
         "min_km": "0.3",
+        # who drives the car, comma separated; the first is the default for each trip (blank turns it off)
+        "drivers": "",
         # look up suburb names for where trips start and end (OpenStreetMap Nominatim, free)
         "place_names": "true",
     },
@@ -109,6 +111,7 @@ class Settings(object):
         self.park_s = gf("trips", "park_minutes") * 60
         self.min_km = gf("trips", "min_km")
         self.place_names = gb("trips", "place_names")
+        self.drivers = [d.strip() for d in g("trips", "drivers").split(",") if d.strip()][:8]
         self.away_dc_price = gf("tariff", "away_dc_c_per_kwh") / 100.0
         self.away_ac_price = gf("tariff", "away_ac_c_per_kwh") / 100.0
         self.sc_url = g("solarcharge", "url").rstrip("/")
@@ -1065,6 +1068,20 @@ class Tracker(object):
             self.store.save_trips(trips)
         return True
 
+    def set_driver(self, tid, name):
+        """Who drove a trip. Saved straight away, since it's something you entered."""
+        if name not in self.s.drivers:
+            return False
+        with self.lock:
+            rec = next((t for t in self.trips if t["id"] == tid), None)
+            if rec is None:
+                return False
+            rec["driver"] = name
+            trips = list(self.trips)
+        if self.store:
+            self.store.save_trips(trips)
+        return True
+
     def get_trip(self, tid):
         with self.lock:
             rec = next((dict(t) for t in self.trips if t["id"] == tid), None)
@@ -1172,6 +1189,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(t.get_days())
         elif u.path == "/api/odometer":
             self._json(t.get_odometer())
+        elif u.path == "/api/drivers":
+            self._json({"drivers": self.tracker.s.drivers})
         elif u.path == "/api/trips":
             self._json(t.get_trips(qi("days", 0)))
         elif u.path.startswith("/api/trip/"):
@@ -1198,11 +1217,14 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         u = urlparse(self.path)
         parts = u.path.strip("/").split("/")
-        if len(parts) == 4 and parts[:2] == ["api", "trip"] and parts[3] == "work":
+        if len(parts) == 4 and parts[:2] == ["api", "trip"] and parts[3] in ("work", "driver"):
             try:
                 n = int(self.headers.get("Content-Length") or 0)
                 body = json.loads(self.rfile.read(min(n, 1000)) or b"{}")
-                ok = self.tracker.set_work(int(parts[2]), body.get("work"))
+                if parts[3] == "work":
+                    ok = self.tracker.set_work(int(parts[2]), body.get("work"))
+                else:
+                    ok = self.tracker.set_driver(int(parts[2]), body.get("driver"))
             except (ValueError, AttributeError):
                 self.send_error(400)
                 return
