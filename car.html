@@ -370,8 +370,9 @@ footer { margin-top: 18px; font-size: 12px; color: var(--text-3); text-align: ce
 .hstats { margin: 0 0 10px; }
 
 #carstats { margin-top: 10px; }
-@media (min-width: 761px) { #carstats { grid-template-columns: repeat(5, 1fr); } }
-@media (max-width: 760px) { #carstats .cs:last-child { grid-column: 1 / -1; } }
+@media (min-width: 761px) { #carstats { grid-template-columns: repeat(3, 1fr); } }
+#cs-rotbox.due { box-shadow: inset 3px 0 0 var(--warn); }
+#cs-rotbox.soon { box-shadow: inset 3px 0 0 var(--accent); }
 #carstats[hidden] { display: none; }
 .rotrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px;
   padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); }
@@ -411,8 +412,9 @@ nav a[hidden] { display: none !important; }
       <div class="cs"><div class="l">Range</div><div class="v" id="cs-range"></div></div>
       <div class="cs"><div class="l">Odometer</div><div class="v" id="cs-odo"></div></div>
       <div class="cs"><div class="l">Driven today</div><div class="v" id="cs-driven"></div></div>
-      <div class="cs"><div class="l">Braking, 7 days</div><div class="v" id="cs-brake"></div></div>
+      <div class="cs"><div class="l">Brake presses, 7 days</div><div class="v" id="cs-brake"></div></div>
       <div class="cs"><div class="l">Tyres <span id="cs-tpt"></span></div><div class="v tyres" id="cs-tyres"></div></div>
+      <div class="cs" id="cs-rotbox"><div class="l">Tyre rotation</div><div class="v" id="cs-rot"></div></div>
     </div>
     <div class="chartnote" id="st-note">Fills in as the car reports. Locations and trips stay on this Pi.</div>
   </section>
@@ -919,6 +921,17 @@ nav a[hidden] { display: none !important; }
   // ---- tyre rotation: km to go, and a button to restart the count (tap twice to confirm)
   var rotArm = null;
   function renderRotation(ty) {
+    var box = $("cs-rotbox");
+    box.classList.remove("due", "soon");
+    if (!ty || !ty.every || ty.due_in === null) $("cs-rot").innerHTML = "<span class='muted'>n/a</span>";
+    else if (ty.due_in <= 0) {
+      box.classList.add("due");
+      $("cs-rot").innerHTML = "<span class='warn'>Due now</span><div class='sub2'>" + Math.round(-ty.due_in).toLocaleString() + " km overdue</div>";
+    } else {
+      if (ty.due_in <= 500) box.classList.add("soon");
+      $("cs-rot").innerHTML = Math.round(ty.due_in).toLocaleString() + "<small>km to go</small><div class='sub2'>every " + Math.round(ty.every).toLocaleString() + " km" +
+        (ty.recorded ? ", last " + new Date(ty.last_t * 1000).toLocaleDateString([], { day: "numeric", month: "short" }) : ", counting from new") + "</div>";
+    }
     if (!ty || !ty.every) { $("rotinfo").textContent = ""; return; }
     var since = ty.recorded ? "Last rotated " + new Date(ty.last_t * 1000).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }) +
       " at " + Math.round(ty.last_odo).toLocaleString() + " km" : "Counting from new";
@@ -965,7 +978,7 @@ nav a[hidden] { display: none !important; }
     if (!bk || bk.km < 1) $("cs-brake").innerHTML = "<span class='muted'>n/a</span><div class='sub2'>needs BrakePedal in Teslemetry</div>";
     else {
       var bs = bk.brake_s, bt = bs < 60 ? bs + " s" : Math.round(bs / 60) + " min";
-      $("cs-brake").innerHTML = (bk.presses * 10 / bk.km).toFixed(1) + "<small>presses per 10 km</small>" +
+      $("cs-brake").innerHTML = (bk.presses * 10 / bk.km).toFixed(1) + "<small>per 10 km</small>" +
         "<div class='sub2'>" + bt + " on the brake" + (bk.regen_kwh !== null ? " &#183; " + bk.regen_kwh.toFixed(1) + " kWh regen" : "") + "</div>";
       $("cs-brake").title = bk.presses + " presses over " + bk.trips + (bk.trips === 1 ? " trip, " : " trips, ") + bk.km.toFixed(0) + " km";
     }
