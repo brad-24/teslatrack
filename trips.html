@@ -469,7 +469,7 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     <h2>Drivers</h2>
     <div class="drivers" id="drivers"></div>
     <div class="chartnote">The efficiency score compares each driver's Wh/km with what the household typically uses on trips at similar speeds,
-      so town and highway driving are compared fairly. 100 is average and higher is better. Each trip starts with the first driver; change it in the Trips table.</div>
+      so town and highway driving are compared fairly. 100 is average and higher is better. A driver needs 50 km of trips to be rated. Each trip starts with the first driver; change it in the Trips table.</div>
   </section>
 
   <section class="card" style="margin-bottom:14px">
@@ -674,18 +674,20 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     var expect = byBand.map(function (a) { return a.length ? median(a) : null; });
     var rows = drivers.map(function (name) {
       var mine = list.filter(function (t) { return driverOf(t) === name; });
-      var km = 0, kwh = 0, ekm = 0, idx = 0, ikm = 0, presses = 0, bkm = 0, regen = 0, rkwh = 0;
+      var km = 0, kwh = 0, ekm = 0, idx = 0, ikm = 0, ekm2 = 0, presses = 0, bkm = 0, regen = 0, rkwh = 0;
       mine.forEach(function (t) {
         km += t.km;
         if (t.kwh && t.km >= 1) {
           kwh += t.kwh; ekm += t.km;
           var e = expect[band(t)];
-          if (e && t.wh_km) { idx += e / t.wh_km * t.km; ikm += t.km; }
+          // energy the household would typically use for this trip, against what was actually used
+          if (e && t.wh_km) { idx += e * t.km; ikm += t.wh_km * t.km; ekm2 += t.km; }
         }
         if (t.brakes !== undefined) { presses += t.brakes; bkm += t.km; }
         if (t.regen_kwh !== undefined && t.kwh) { regen += t.regen_kwh; rkwh += t.kwh; }
       });
-      var score = ikm >= 20 ? Math.round(idx / ikm * 100) : null;
+      // a ratio of totals, so one unusually efficient trip (say, down the range) can't swing the score; needs 50 km to rate
+      var score = ekm2 >= 50 && ikm > 0 ? Math.round(idx / ikm * 100) : null;
       return { name: name, trips: mine.length, km: km, whkm: ekm >= 1 ? Math.round(kwh * 1000 / ekm) : null, score: score,
                brake: bkm >= 5 ? presses * 10 / bkm : null, regen: rkwh > 0 ? regen / rkwh * 100 : null };
     });
