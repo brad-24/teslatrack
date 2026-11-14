@@ -285,7 +285,7 @@ dl.kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .cs .v { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
 .cs .v small { font-size: 12px; color: var(--text-2); font-weight: 500; margin-left: 2px; }
 .cs .v .sub2 { font-size: 12px; font-weight: 500; color: var(--text-2); margin-top: 1px; }
-.cs .tyres { display: grid; grid-template-columns: auto auto; justify-content: start; column-gap: 18px; font-size: 15px; }
+.cs .tyres { display: grid; grid-template-columns: auto auto; justify-content: start; column-gap: 18px; font-size: 17px; }
 .cs .tyres .low { color: var(--warn); }
 .cs .tyres .pos { font-size: 11px; font-weight: 600; color: var(--text-3); margin: 0 5px 0 0; }
 @media (max-width: 760px) { .carstats { grid-template-columns: 1fr 1fr; } }
@@ -359,7 +359,8 @@ footer { margin-top: 18px; font-size: 12px; color: var(--text-3); text-align: ce
 /* ---- car status, notices and battery health */
 .cstat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 @media (max-width: 760px) { .cstat { grid-template-columns: 1fr 1fr; } }
-.cs .v.sm { font-size: 15px; font-weight: 600; }
+.cs .v.sm { font-size: 17px; font-weight: 650; }
+.cs .v .sub2 { font-size: 12px; font-weight: 500; }
 .cs .v .ok { color: var(--good); }
 .cs .v .warn { color: var(--warn); }
 .cs .v .dim { color: var(--text-3); font-weight: 500; }
@@ -370,7 +371,10 @@ footer { margin-top: 18px; font-size: 12px; color: var(--text-3); text-align: ce
 .hstats { margin: 0 0 10px; }
 
 #carstats { margin-top: 10px; }
-@media (min-width: 761px) { #carstats { grid-template-columns: repeat(3, 1fr); } }
+/* the two tile grids line up as one: four columns (two on phones), with brakes and tyres two wide */
+.cs.wide { grid-column: span 2; }
+.cs.wide .tyres { grid-template-columns: repeat(4, auto); column-gap: 22px; }
+@media (max-width: 380px) { .cs.wide .tyres { grid-template-columns: auto auto; } }
 #cs-rotbox.due { box-shadow: inset 3px 0 0 var(--warn); }
 #cs-rotbox.soon { box-shadow: inset 3px 0 0 var(--accent); }
 #carstats[hidden] { display: none; }
@@ -412,9 +416,9 @@ nav a[hidden] { display: none !important; }
       <div class="cs"><div class="l">Range</div><div class="v" id="cs-range"></div></div>
       <div class="cs"><div class="l">Odometer</div><div class="v" id="cs-odo"></div></div>
       <div class="cs"><div class="l">Driven today</div><div class="v" id="cs-driven"></div></div>
-      <div class="cs"><div class="l">Brake presses, 7 days</div><div class="v" id="cs-brake"></div></div>
-      <div class="cs"><div class="l">Tyres <span id="cs-tpt"></span></div><div class="v tyres" id="cs-tyres"></div></div>
       <div class="cs" id="cs-rotbox"><div class="l">Tyre rotation</div><div class="v" id="cs-rot"></div></div>
+      <div class="cs wide"><div class="l">Brake presses, 7 days</div><div class="v" id="cs-brake"></div></div>
+      <div class="cs wide"><div class="l">Tyres <span id="cs-tpt"></span></div><div class="v tyres" id="cs-tyres"></div></div>
     </div>
     <div class="chartnote" id="st-note">Fills in as the car reports. Locations and trips stay on this Pi.</div>
   </section>
