@@ -701,13 +701,14 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     });
     // only crown a winner when at least two drivers have a score to compare
     var rated = rows.filter(function (r) { return r.score !== null; }).sort(function (a, b) { return b.score - a.score; });
-    var best = rated.length >= 2 && rated[0].score > rated[1].score ? rated[0] : null;
+    // and only when the lead is real: within 3% is too close to call
+    var best = rated.length >= 2 && rated[0].score - rated[1].score >= 3 ? rated[0] : null;
     $("drivers").innerHTML = rows.map(function (r) {
       var st = r.score === null ? 0 : r.score >= 110 ? 5 : r.score >= 103 ? 4 : r.score >= 97 ? 3 : r.score >= 90 ? 2 : 1;
       return "<div class='drv'><div class='dn'>" + esc(r.name) + (best && best === r && rows.length > 1 && r.score !== null ? "<span class='top'>Most efficient</span>" : "") + "</div>" +
         (r.score === null ? "<div class='dscore muted'>" + (r.trips ? "Not enough driving yet" : "No trips") + "</div>"
           : "<div class='dscore'><span class='stars'>" + stars(st) + "</span></div><div class='dvs'>" + vsAvg(r.score) + "</div>") +
-        "<div class='dstats'><span><b>" + na(r.whkm) + "</b> Wh/km</span><span><b>" + Math.round(r.km) + "</b> km, " + r.trips + (r.trips === 1 ? " trip" : " trips") + "</span>" +
+        "<div class='dstats'><span title='Raw average, before allowing for the kind of trips driven'><b>" + na(r.whkm) + "</b> Wh/km</span><span><b>" + Math.round(r.km) + "</b> km, " + r.trips + (r.trips === 1 ? " trip" : " trips") + "</span>" +
         (r.brake !== null ? "<span><b>" + r.brake.toFixed(1) + "</b> brake presses per 10 km</span>" : "") +
         (r.regen !== null ? "<span><b>" + Math.round(r.regen) + "%</b> recovered by regen</span>" : "") + "</div></div>";
     }).join("");
