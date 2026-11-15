@@ -540,6 +540,7 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
   // time on the brake: seconds under a minute, otherwise minutes and seconds
   function brakeTime(s) {
     s = s || 0;
+    if (s >= 3600) return Math.floor(s / 3600) + " h " + Math.round((s % 3600) / 60) + " min";
     return s < 60 ? s + " s" : Math.floor(s / 60) + " min " + (s % 60) + " s";
   }
   function showTrip(id) {
@@ -682,7 +683,7 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     var expect = byBand.map(function (a) { return a.length ? median(a) : null; });
     var rows = drivers.map(function (name) {
       var mine = list.filter(function (t) { return driverOf(t) === name; });
-      var km = 0, kwh = 0, ekm = 0, idx = 0, ikm = 0, ekm2 = 0, presses = 0, bkm = 0, regen = 0, rkwh = 0;
+      var km = 0, kwh = 0, ekm = 0, idx = 0, ikm = 0, ekm2 = 0, presses = 0, bkm = 0, bsec = 0, bmin = 0, regen = 0, rkwh = 0;
       mine.forEach(function (t) {
         km += t.km;
         if (t.kwh && t.km >= 1) {
@@ -691,13 +692,14 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
           // energy the household would typically use for this trip, against what was actually used
           if (e && t.wh_km) { idx += e * t.km; ikm += t.wh_km * t.km; ekm2 += t.km; }
         }
-        if (t.brakes !== undefined) { presses += t.brakes; bkm += t.km; }
+        if (t.brakes !== undefined) { presses += t.brakes; bkm += t.km; bsec += t.brake_s || 0; bmin += t.minutes || 0; }
         if (t.regen_kwh !== undefined && t.kwh) { regen += t.regen_kwh; rkwh += t.kwh; }
       });
       // a ratio of totals, so one unusually efficient trip (say, down the range) can't swing the score; needs 50 km to rate
       var score = ekm2 >= 50 && ikm > 0 ? Math.round(idx / ikm * 100) : null;
       return { name: name, trips: mine.length, km: km, whkm: ekm >= 1 ? Math.round(kwh * 1000 / ekm) : null, score: score,
-               brake: bkm >= 5 ? presses * 10 / bkm : null, regen: rkwh > 0 ? regen / rkwh * 100 : null };
+               brake: bkm >= 5 ? presses * 10 / bkm : null, bsec: bkm >= 5 ? bsec : null,
+               bpct: bkm >= 5 && bmin > 0 ? bsec / (bmin * 60) * 100 : null, regen: rkwh > 0 ? regen / rkwh * 100 : null };
     });
     // only crown a winner when at least two drivers have a score to compare
     var rated = rows.filter(function (r) { return r.score !== null; }).sort(function (a, b) { return b.score - a.score; });
@@ -710,6 +712,8 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
           : "<div class='dscore'><span class='stars'>" + stars(st) + "</span></div><div class='dvs'>" + vsAvg(r.score) + "</div>") +
         "<div class='dstats'><span title='Raw average, before allowing for the kind of trips driven'><b>" + na(r.whkm) + "</b> Wh/km</span><span><b>" + Math.round(r.km) + "</b> km, " + r.trips + (r.trips === 1 ? " trip" : " trips") + "</span>" +
         (r.brake !== null ? "<span><b>" + r.brake.toFixed(1) + "</b> brake presses per 10 km</span>" : "") +
+        (r.bsec !== null ? "<span><b>" + brakeTime(Math.round(r.bsec)) + "</b> on the brake" +
+          (r.bpct !== null ? ", <b>" + (r.bpct < 10 ? r.bpct.toFixed(1) : Math.round(r.bpct)) + "%</b> of driving time" : "") + "</span>" : "") +
         (r.regen !== null ? "<span><b>" + Math.round(r.regen) + "%</b> recovered by regen</span>" : "") + "</div></div>";
     }).join("");
   }
