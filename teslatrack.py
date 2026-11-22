@@ -695,10 +695,26 @@ class Tracker(object):
                 if tr["start_loc"]:
                     tr["points"].append([round(tr["start_loc"][0], 5), round(tr["start_loc"][1], 5), int(now)])
             return
+        if tr.get("park_since") and any(str(d).lower() in ("driverfront", "df") for d in upd.get("doors_open") or []):
+            tr["driver_door"] = True     # the driver's door opened while parked: likely a change of driver
+        if driving is True and tr.get("park_since") and tr.get("driver_door"):
+            # Moving again after the driver's door opened in Park: finish the trip where it parked and start a
+            # new one here, so a swap of drivers gives each their own trip (normally a trip only ends after
+            # being parked a few minutes)
+            tr["split"] = True
+            self._end_trip(now)
+            self._trip_update(now, upd, v, loc)
+            return
         if driving is True:
             tr["park_since"] = None
         elif driving is False and not tr.get("park_since"):
             tr["park_since"] = now
+            tr["driver_door"] = False
+            # the car's readings as it parked, in case this turns out to be a change of driver
+            tr["park_v"] = {k: v.get(k) for k in ("odo_km", "energy_kwh", "soc", "regen_kwh")}
+            for k in ("odo_km", "energy_kwh", "soc"):
+                if upd.get(k) is not None:
+                    tr["park_v"][k] = upd[k]
             if tr.get("brake_on"):   # parked with a foot on the brake: count the time up to parking
                 tr["brake_s"] = tr.get("brake_s", 0.0) + min(now - tr["brake_on"], 600)
                 tr["brake_on"] = None
@@ -745,6 +761,10 @@ class Tracker(object):
         if not tr:
             return
         v = self.vehicle
+        if tr.get("split") and tr.get("park_v"):
+            # ended by a change of driver: use the readings from when it parked, not now it's moving again
+            v = dict(v)
+            v.update({k: x for k, x in tr["park_v"].items() if x is not None})
         if tr.get("brake_on") and not tr.get("park_since"):
             tr["brake_s"] = tr.get("brake_s", 0.0) + min(now - tr["brake_on"], 600)
         end = tr.get("park_since") or now
