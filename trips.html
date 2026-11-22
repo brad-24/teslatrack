@@ -407,6 +407,10 @@ button.work.on::before { transform: translateX(100%); background: var(--accent);
 button.work.on .p { color: var(--text-3); }
 button.work.on .w { color: var(--accent-ink); }
 button.work:disabled { opacity: .6; cursor: wait; }
+.splitrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; }
+.splitrow:empty { display: none; }
+.splitbtn { font: inherit; font-size: 13px; background: none; border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+.splitbtn.confirm { border-color: var(--accent); }
 select.drvsel { font: inherit; font-size: 13px; padding: 3px 6px; border-radius: 8px; border: 1px solid var(--border);
   background: var(--surface-2); color: var(--text); cursor: pointer; }
 .drivers { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
@@ -478,6 +482,7 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     <h2 id="maptitle">Trip</h2>
     <div class="tripmap" id="map"></div>
     <div class="tripinfo" id="tripinfo"></div>
+    <div class="splitrow" id="splitrow"></div>
   </section>
 
   <section class="card" style="margin-bottom:14px">
@@ -543,6 +548,22 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
     if (s >= 3600) return Math.floor(s / 3600) + " h " + Math.round((s % 3600) / 60) + " min";
     return s < 60 ? s + " s" : Math.floor(s / 60) + " min " + (s % 60) + " s";
   }
+  // split a trip at a stop: tap once to arm, again to confirm
+  $("splitrow").addEventListener("click", function (e) {
+    var b = e.target.closest("button.splitbtn"); if (!b) return;
+    if (!b.classList.contains("confirm")) {
+      b.classList.add("confirm"); b.dataset.label = b.textContent; b.textContent = "Tap again to split here";
+      setTimeout(function () { if (b.classList.contains("confirm")) { b.classList.remove("confirm"); b.textContent = b.dataset.label; } }, 4000);
+      return;
+    }
+    b.disabled = true; b.textContent = "Splitting\u2026";
+    var id = $("splitrow").getAttribute("data-id");
+    fetch("/api/trip/" + id + "/split", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ at: +b.dataset.at }) })
+      .then(function (r) { return r.json(); }).then(function (j) {
+        if (!j.ok) { b.textContent = j.error || "Couldn't split it"; return; }
+        poll(); setTimeout(function () { showTrip(j.id); }, 600);
+      }).catch(function () { b.textContent = "Couldn't reach the Pi"; });
+  });
   function showTrip(id) {
     selected = id;
     document.querySelectorAll("tr.trip").forEach(function (tr) { tr.classList.toggle("sel", tr.getAttribute("data-id") === String(id)); });
@@ -558,7 +579,18 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
         (t.avg_kmh ? "<span>Average <b>" + t.avg_kmh + "</b> km/h</span>" : "") + (t.top_kmh ? "<span>Top <b>" + t.top_kmh + "</b> km/h</span>" : "") +
         (t.outside !== null && t.outside !== undefined ? "<span>Outside <b>" + Math.round(t.outside) + "\u00b0C</b></span>" : "") +
         (t.brakes !== undefined ? "<span>Brake <b>" + t.brakes + "</b> " + (t.brakes === 1 ? "press" : "presses") + ", <b>" + brakeTime(t.brake_s) + "</b></span>" : "") +
-        (t.regen_kwh !== undefined ? "<span>Regen <b>" + t.regen_kwh.toFixed(1) + "</b> kWh</span>" : "");
+        (t.regen_kwh !== undefined ? "<span>Regen <b>" + t.regen_kwh.toFixed(1) + "</b> kWh</span>" : "") +
+        (t.split ? "<span class='muted'>Split from a longer trip: energy and braking are shared by distance</span>" : "");
+      // stops along the way (the car didn't move for 20 seconds or more), where the trip can be split in two
+      var stops = [], rt = t.route || [];
+      for (var k = 2; k < rt.length - 1; k++) {
+        var gap = (rt[k][2] || 0) - (rt[k - 1][2] || 0);
+        if (gap >= 20) stops.push({ at: rt[k - 1][2], secs: gap, loc: rt[k - 1] });
+      }
+      $("splitrow").innerHTML = stops.length ? "<span class='muted'>Changed drivers along the way?</span> " + stops.map(function (st) {
+        return "<button class='splitbtn' type='button' data-at='" + st.at + "'>Split at the " + hm(st.at) + " stop (" + (st.secs < 90 ? st.secs + " s" : Math.round(st.secs / 60) + " min") + ")</button>";
+      }).join(" ") : "";
+      $("splitrow").setAttribute("data-id", t.id);
       if (!map) return;
       layer.clearLayers();
       var pts = (t.route || []).map(function (p) { return [p[0], p[1]]; });
@@ -568,6 +600,10 @@ tbody tr.trip.sel td { background: var(--surface-2); color: var(--text); }
       L.polyline(pts, { color: green, weight: 5, opacity: .9 }).addTo(layer);
       L.circleMarker(pts[0], { radius: 7, color: "#fff", weight: 2, fillColor: green, fillOpacity: 1 }).bindTooltip("Start").addTo(layer);
       L.circleMarker(pts[pts.length - 1], { radius: 7, color: "#fff", weight: 2, fillColor: "#e5484d", fillOpacity: 1 }).bindTooltip("End").addTo(layer);
+      stops.forEach(function (st) {
+        L.circleMarker([st.loc[0], st.loc[1]], { radius: 6, color: "#fff", weight: 2, fillColor: "#f5b31c", fillOpacity: 1 })
+          .bindTooltip("Stopped " + hm(st.at)).addTo(layer);
+      });
       map.fitBounds(L.latLngBounds(pts).pad(0.15));
     }).catch(function () {});
   }

@@ -1128,6 +1128,69 @@ class Tracker(object):
             self.store.save_trips(trips)
         return True
 
+    def split_trip(self, tid, at):
+        """Split a saved trip in two at a stop on its route (the time the car stopped there). The route says
+        where each part went; energy, battery, braking and regen are shared in proportion to distance, since
+        the car's readings at that moment weren't kept. Returns the second part's id."""
+        with self.lock:
+            rec = next((t for t in self.trips if t["id"] == tid), None)
+        if not rec or not self.store:
+            return None
+        pts = self.store.load_route(tid)
+        cut = next((i for i, p in enumerate(pts) if len(p) > 2 and p[2] > at), None)
+        if cut is None or cut < 2 or cut > len(pts) - 1:
+            return None
+        a, b = pts[:cut], pts[cut - 1:]
+        da = sum(dist_m(a[i][:2], a[i + 1][:2]) for i in range(len(a) - 1))
+        db = sum(dist_m(b[i][:2], b[i + 1][:2]) for i in range(len(b) - 1))
+        if da + db <= 0:
+            return None
+        f = da / (da + db)
+        stop_t, go_t = int(a[-1][2]), int(b[1][2]) if len(b) > 1 else int(at)
+
+        def part(src, frac, start, end, s_loc, e_loc):
+            r = dict(src)
+            r["start"], r["end"] = int(start), int(end)
+            r["km"] = round(src["km"] * frac, 1)
+            r["minutes"] = max(1, int(round((end - start) / 60.0)))
+            r["kwh"] = round(src["kwh"] * frac, 2) if src.get("kwh") else None
+            r["wh_km"] = int(round(r["kwh"] * 1000.0 / r["km"])) if r["kwh"] and r["km"] >= 1 else None
+            r["avg_kmh"] = int(round(r["km"] / (r["minutes"] / 60.0)))
+            r["top_kmh"] = None     # not known for each part
+            for k in ("brakes", "brake_s"):
+                if src.get(k) is not None:
+                    r[k] = int(round(src[k] * frac))
+            if src.get("regen_kwh") is not None:
+                r["regen_kwh"] = round(src["regen_kwh"] * frac, 2)
+            r["start_loc"], r["end_loc"] = [round(x, 5) for x in s_loc], [round(x, 5) for x in e_loc]
+            r["split"] = True
+            return r
+
+        first = part(rec, f, rec["start"], stop_t, rec.get("start_loc") or a[0][:2], a[-1][:2])
+        second = part(rec, 1 - f, go_t, rec["end"], b[0][:2], rec.get("end_loc") or b[-1][:2])
+        second["id"] = go_t if go_t != rec["id"] else go_t + 1
+        first["end_place"], second["start_place"] = None, None
+        if rec.get("soc_start") is not None and rec.get("soc_end") is not None:
+            mid = int(round(rec["soc_start"] + (rec["soc_end"] - rec["soc_start"]) * f))
+            first["soc_end"], second["soc_start"] = mid, mid
+        first["points"], second["points"] = len(a), len(b)
+        for r, which, loc in ((first, "end", a[-1][:2]), (second, "start", b[0][:2])):
+            if self.home_loc and dist_m(self.home_loc, loc) <= self.s.home_radius:
+                r[which + "_place"] = "Home"
+        with self.lock:
+            i = next((k for k, t in enumerate(self.trips) if t["id"] == tid), None)
+            if i is None:
+                return None
+            self.trips[i:i + 1] = [first, second]
+            self.store.save_route(first["id"], a)
+            self.store.save_route(second["id"], b)
+            self.store.save_trips(self.trips)
+        self.event("Trip split at %s: %.1f km and %.1f km" % (time.strftime("%H:%M", time.localtime(stop_t)), first["km"], second["km"]))
+        th = threading.Thread(target=lambda: (self._name_places(first), self._name_places(second)), name="places")
+        th.daemon = True
+        th.start()
+        return second["id"]
+
     def get_trip(self, tid):
         with self.lock:
             rec = next((dict(t) for t in self.trips if t["id"] == tid), None)
@@ -1268,6 +1331,18 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"ok": True})
             else:
                 self._json({"ok": False, "error": "The odometer hasn't been reported yet"}, 409)
+            return
+        if len(parts) == 4 and parts[:2] == ["api", "trip"] and parts[3] == "split":
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                body = json.loads(self.rfile.read(min(n, 1000)) or b"{}")
+                new = self.tracker.split_trip(int(parts[2]), float(body.get("at")))
+            except (ValueError, TypeError):
+                new = None
+            if new:
+                self._json({"ok": True, "id": new})
+            else:
+                self._json({"ok": False, "error": "Couldn't split the trip there"}, 400)
             return
         if len(parts) == 4 and parts[:2] == ["api", "trip"] and parts[3] in ("work", "driver"):
             try:
